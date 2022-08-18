@@ -1,0 +1,760 @@
+---
+title: "Statisztikai Kapcsolatvizsgálatok"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+---
+
+<style>
+body {
+text-align: justify;
+font-size: 12pt}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. A Kapcsolatvizsgálat alapfeladata
+
+A Moodle-n található *CSOK.xlsx* fájl egy olyan adattábla, ami 15800 db véletlenszerűen kiválasztott eladó magyar ingatlanról (lakásról és kertes házról) 5 változó (oszlop) adatát tárolja:
+
+- **price**: ház ára millió Ft-ban (MFt)
+- **area**: ház területe négyzetméterben
+- **telepules**: ház településének típusa (Budapest, város, község) 
+- **CSOK3gyerek**: a házra igényelhető-e 3 gyerekes CSOK kedvezmény (1=igen, 0=nem)
+- **type**: ház típusa (flat=lakás, house=kertes ház)
+
+Az adatok forrása az [ingatlan.com](https://ingatlan.com/), a változók letöltését 2021 január-februárjában végeztük webscraping segítségével.
+
+Olvassuk be az adattáblát egy R `data frame`-be!
+
+Állítsuk be a megfelelő helyre a `Working Directory`-t:
+
+```{r}
+setwd("~/Oktatás 2021221/Többváltozós adatelemzés/R jegyzet")
+```
+
+Majd a `readxl` csomag segítségével olvassuk be a fájlt:
+
+```{r}
+library(readxl)
+CSOK <- read_excel("CSOK.xlsx")
+str(CSOK)
+```
+
+Láthatjuk, hogy az adatokon van mit dolgozni: az árak és a terület tökéletes `numeric` adattípusban kezelve, de a településtípust és a lakás típusát állítsuk át `factor` adattípusra, míg a CSOK-ot jelző változót `logical` típusra. Mivel a `type` változó is technikailag csak 2 értékkel bír (flat vagy house), így ő is lehetne logical, de itt talán beszédesebb lenne megőrizni a *flat/house* címkéket a jobb értelmezhetőség érdekében, így maradunk a `factor` adattípusnál.
+
+```{r}
+CSOK$Settlement <- as.factor(CSOK$Settlement)
+CSOK$type <- as.factor(CSOK$type)
+CSOK$CSOK3 <- as.logical(CSOK$CSOK3)
+str(CSOK)
+```
+
+Ok, így már úgy néz ki rendben vagyunk adattípus-ügyileg.
+
+Rá is állhatunk a fő feladatunkra: a **statisztikai kapcsolatvizsgálat**ok elemzésére! Ennél a feladattípusnál kilépünk az eddig vizsgált *egyváltozós elemzések* témaköréből, és azt vizsgáljuk, hogy **két változó milyen kapcsolatban áll egymással**. Ezt mindig **három nézőpontból vizsgáljuk**:
+
+- Milyen a két változó közötti **kapcsolat jellege**?
+  * Erre általában egy megfelelő **grafikon** segítségével válaszolhatunk.
+- Milyen **erős/szoros** a két változó közti kapcsolat?
+  * Erre egy **0-1 közötti értékeket felvehhető statisztikai mutatószám** adja meg a választ.
+- A vizsgált kapcsolat **általánosítható-e** a megfigyelt adatokon kívül világra, azaz **a sokaságra**?
+  * Ezt pedig **hipotézisvizsgálat** segítségével tudjuk eldönteni.
+
+A fenti három szempont szerinti **konkrét számításaink módját** és képleteit **az határozza meg**, hogy a kapcsolatban résztvevő változóink **minőségi vagy mennyiségi változók**nak tekinthetők-e.<br>
+A tanult statisztikai módszereket ennek a minőségi/mennyiségi beosztásnak megfelelően az alábbi táblázat foglalja össze:
+
+```{r, echo=FALSE}
+
+x <- data.frame("Kapcsolat típusa" = c("Vegyes", "Asszociációs", "Korrelációs"),
+                "Változók mérési skálája" = c("minőségi-mennyiségi", "minőségi-minőségi", "mennyiségi-mennyiségi"),
+                "Alkalmazott diagram" = c("Csoportosított doboz ábra", "Halmozott oszlop", "Pontdiagram"),
+                "Statisztikai elemzési eszközök" = c("Variancia-hányados és ANOVA", "Cramer-együttható és Khi-négyzet próba", "Korreláció és Kétváltozós regresszió"))
+
+knitr::kable(
+  x, align = "cc"
+)
+```
+
+Mielőtt azonban végigmegyünk a fent felvázolt háromféle kapcsolattípuson, először nézzük meg hogyan lehet az R-ben kicsit látványosabban ábrákat és grafikonokat készíteni, mint ahogy eddig tettük. Imserjük meg az R `ggplot2` csomagját!
+
+## 2. Ábrák a `ggplot2` csomaggal
+
+Az igazán szép és általános R ábrák készítéséhez napjainkban a `ggplot2` csomag függvényei a bevett eszközök.
+
+Telepítsük, és hivatkozzuk is be a csomag függvényeit:
+
+```{r eval=FALSE}
+install.packages("ggplot2")
+library(ggplot2) # Szokásos módon ne törődjünk az esetleges Warningokkal! :)
+```
+```{r echo=FALSE}
+library(ggplot2)
+```
+
+A `ggplot2` csomagban az ábrakészítés alapelve, hogy egyfajta "*hagyma struktúrában*" kell a grafikonjainkat felépíteni: egyszer megírjuk az ábra magját, majd arra újabb és újabb "díszítő" rétegeket rakunk rá. A végeredmény pedig így egy sok-sok rétegből álló hagyma lesz. :)
+
+### 2.1. Hisztogram
+
+Először csináljunk egy sima hisztogramot a lakásárakra. A `ggplot2` logika szerint először meg kell adni, hogy melyik `data frame`-ből kiindulva szeretnénk létrehozni az ábrát. Majd meg kell adni, hogy a `data frame` mely változóit (oszlopait) az ábra melyik tengelyén *x* vagy *y* akarjuk ábrázolni. **Minden esetben ez az ábra első rétege: hogy mit rakunk a tengelyekre**!<br>
+Az ábra második rétegében meg kell adni, hogy milyen típusú ábrát akarunk elkészíteni az első rétegben megadott tengelyek segítségével. Ez esetünkben egy hisztogram lesz. **Fontos, hogy az egyes rétegeket mindig `+` jellel választjuk el!**<br>
+Mindez R kód szintjén az alábbi lesz. Figyeljük meg a kódban, hogy azt, hogy mely változókat rakjuk a tengelyekre, azt egy külön `aes` nevű függvénnyel kell megadni az alap `ggplot` függvényen belül! Mivel az *y* tengelyen egy hisztogramban csak gyakoriságok vannak, **NEM** a `data frame` egy másik változója, így az aes függvény *y* paraméterét üresen hagyhatjuk:
+
+```{r}
+ggplot(data = CSOK, aes(x = price)) +
+  geom_histogram()
+```
+
+Csudiszép hisztogram. Szebb, mint ami a `hist` függvénnyel kijött eddig, ugye? :)
+
+Ahogy az R output tájékoztatóul írja, a hisztogramhoz 30 db osztályközt (*bin*t) alakított ki az árakból. Ha az osztályközök számát változtatni akarjuk (pl. 20-ra csökkenteni), akkor azt a `geom_histogram` függvény `bins` paraméterével lehet szabályozni:
+
+```{r}
+ggplot(data = CSOK, aes(x = price)) +
+  geom_histogram(bins = 20)
+```
+
+Ha szeretnénk, akkor az osztályköz hozzát változtatni azt is lehet a `geom_histogram` függvény `binwidth` paraméterével.
+
+Ha beszédesebb tengelyfeliratokat vagy egy diagramcímet szeretnénk, akkor azt egy extra *hagyma-rétegben* kell felvinni egy `+` jellel és a `labs()` függvényt használjuk:
+
+```{r}
+ggplot(data = CSOK, aes(x = price)) +
+  geom_histogram(bins = 20) +
+  labs(x="Lakás ára MFt-ban", y="Gyakoriság (db)", title = "Lakásárak eloszlása")
+```
+
+Igazán remek. Gyönyörködhetünk a lakásárak **jobbra élesen elnyúló** eloszlásában. Ez nem meglepő: logikus eredmény, hogy a legtöbb eladó lakás/ház ára aránylag "*alacsony*", pár 10 milliós, de van azért 1-2 többszáz milliós luxusvilla a piacon. :)
+
+Mivel a **kapcsolatvizsgálat statisztikai módszerei igen érzékenyek a mennyiségi változókban lévő kilógó értékekre, így keressük meg ezeket doboz-ábrák segítségével az árakban és a területekben**!
+
+### 2.2. Doboz ábra
+
+Csinálhatunk doboz ábrát is `ggplot`tal a lakásárakra. Annyi változtatást kell eszközölni, hogy az *x* tengely helyett az *y* tengelyre kell rakni a vizsgált oszlopunk, mert a doboz ábrán az adatok tengelye ugyebár az *y* és nem az *x* tengely. Plusz az ábra típusát kell cserélni hisztogramról doboz ábrára a második rétegben:
+
+```{r}
+ggplot(data = CSOK, aes(y = price)) +
+  geom_boxplot()
+```
+
+Ez is csodásan fest! A doboz ábra alapján csak egy ár tűnik igazán kilógónak, azaz nagyon leszakadónak az árak középső 50%-hoz (a dobozhoz) képest: a legnagyobb majdnem 1000 milliós érték.
+
+Szűrjük is ki ezt az egy értéket a `data frame`-ből:
+
+```{r}
+CSOK <- CSOK[CSOK$price < 900,]
+
+ggplot(data = CSOK, aes(y = price)) +
+  geom_boxplot()
+```
+
+Így már egy kulturáltabb, azaz kevésbé éles jobbra elnyúló áreloszlást mutat a doboz ábra (kitágult a doboz).
+
+Végezzük el az outlier vizsgálatot a területre is:
+
+```{r}
+ggplot(data = CSOK, aes(y = area)) +
+  geom_boxplot()
+```
+
+Tyű, itt több kilógó érték is van! Egy ordító nagy, a legnagyobb 12000 négyzetméteres terület, de a két 2000 négyzetméter feletti pont is elég elszakadónak tűnik már. Nyírjuk ki ezeket a `data frame`-ből:
+
+```{r}
+CSOK <- CSOK[CSOK$area < 2000,]
+
+ggplot(data = CSOK, aes(y = area)) +
+  geom_boxplot()
+```
+
+Na, így már szebb a dolog. Persze a terület is még jobbra elnyúló (a középső 50% = doboz közelebb van a minimumhoz, mint a maximumhoz), de ez is egy természetes jelenség: a legtöbb eladó lakás/ház alacsony területű, és az az 1-2 luxusvilla, aminek az árakban is többszáz milliós értéke volt, annak valószínűleg jó nagy a területe is: kell a hely sertésszaunára meg helikopter leszállópályára. :)
+
+Miután a kilógó értékektől megszabadultunk a mennyiségi változókban lássuk akkor a kapcsolatvizsgálati módszereinket szépen sorban!
+
+## 3. Vegyes kapcsolat
+
+Vizsgáljuk meg azt, hogy milyen kapcsolatban áll a lakásár (*mennyiségi* változó) és az, hogy a házra lehet-e CSOK kedvezményt kapni 3 gyerek után (*minőségi* változó).
+
+A kapcsolat jellegét legjobban egy **csoportosítottdoboz ábrával** lehet leírni: azaz nézzük meg egymást mellett a CSOK-ra jogosult és nem logosult házak/lakások árainak doboz ábráját.
+
+Nézzük meg hogyan lehet itt egy `factor` vagy `logical` típusú változó szerinti csoportosítást megoldani a doboz ábrák szintjén `gpplot2`-ben. Kicsit cselesen, mert itt a kitöltési szín paraméterén (`fill`) keresztül kell jelezni a csoportosítási szándékunkat valamelyik változó szerint az első réteg `aes` függvényének paraméterein belül. Cserébe a gépállat megszínezi nekünk külön színekkel az egyes kerületek ár szerinti doboz ábráit. Ha az *x* tengelyre is beírjuk a minőslgi változónkat, akkor az *x* tengelyre is kiírja annak lehetséges értékeit:
+
+```{r}
+ggplot(data = CSOK, aes(y = price, x=CSOK3, fill = CSOK3)) +
+  geom_boxplot()
+```
+
+Nagyon szép! Láthatjuk, hogy a CSOK-ra jogosult eladó ingatlanok esetében a medián ár gyakorlatilag annyi, mint a nem CSOK-os ingatlanok esetén az árak felső kvartilise! Plusz, a legangyobb, enyhén felfelé kilógó árak is a CSOK-ra jogosult ingatlanok körébe tartoznak.<br>
+Ez talán nem meglepő: a rendes 3 gyerekkel tervező nagycsalásoknak kell a tér és a jól felszerelt, drága lakás!
+
+Tehát a kapcsolat jellege tekintetében elmondhatjuk, hogy a CSOK-os lakások középső 50% tekintetében is egy magasabb árszínvonalat képviselnek és ide koncentrálódnak a felfelé kilógó értékek is.
+
+De kérdés, hogy mennyire erős ez a kapcsolat? **Hány százalékban magyarázza mégis a CSOK kedvezmény a lakásárak ingadozását?** Erre a kérdésre adja meg a választ a **variancia-hányados** becenevű statisztikai mutató.
+
+### 3.1. A variancia-hányados
+
+A variancia-hányados számolásához szükséges dolgokat az R `aov` függvénye adja meg. Egyszerűen rá kell ereszteni a függvényt a mennyiségi és minőségi változóra **hullámjelekkel elválasztva**: *mennyiségi változó ~ minőségi változó* --> a sorrend számít! Elül van mindig a mennyiségi változó neve hátul a minőségi változó neve! Itt nem muszáj a változók nevére `$` jellel hivatkozni a `data frame`-n keresztül. A vizsgált két változót tartalmazó `data frame` objektum nevét meg lehet adni a függvény `data` paraméterében:
+
+```{r}
+aov(price ~ CSOK3, data = CSOK)
+```
+
+Az eredmények két fontos **négyzetösszeg** (in inglis *Sum of Squares*) mutatót adnak meg:
+
+- **Sum of Squares Between = $SSB$**: A **minőségi változó csoportátlagainak** összes négyzetes **eltérése a mennyiségi változó főátlagától**.
+ * Esetünkben most $SSB=1956779$
+- **Sum of Squares Residuals = $SSR$**: Az egyes **megfigyelések** mennyiségi változó szerinti összes négyzetes **eltérése saját minőségi változó csoportjuk átlagtól**.
+ * Esetünkben most $SSR=13970044$
+- A két érték összege a **Sum of Squares Total = $SST=SSB+SSR$**: Ez nem más, mint a mennyiségi változó varianciájának "*teteje*", az egyes **megfigyelések** összes négyzetes **eltérése a mennyiségi változó főátlagától**.
+  * Esetünkben most $SST=1956779+13970044=15926823$
+
+Az összefüggést a mennyiségi változó varianciájával (szórásnégyzetével) könnyen ellenőrizni tudjuk:
+
+```{r}
+sd(CSOK$price)^2 * (nrow(CSOK)-1)
+```
+
+Vizuálisan gondolva erre a jelenségre azt mondhatjuk, hogy az egyes $SS$ mutatók az alábbi **távolságok** négyzetes összegét jelentik. A négyzetre emelésre a távolságok *eltérő előjelének kiküszöbölése* miatt van szükség (mint a szórásképlet kapcsán néztük):
+
+<center>
+![](ANOVA_1.jpg){width=75%}
+</center>
+
+Tehát vizuálisan a következőképp érdemes gondolni a különböző $SS$-ekre:
+
+- $SSR$: Megfigyelések távolsága saját csoportjuk átlagától
+- $SSB$: Csoportátlag távolsága a főátlagtól
+- $SST$: Megfigyelések távolsága a főátlagától
+
+Ezek alapján nekünk az a jó a csoportosítás, azaz a minőségi magyarázóváltozó magyarázóereje szempontjából, ha **fix** $SST$ mellett $SSB$ **nagy** és $SSR$ **kicsi**. Mert ekkor a **csoportátlagok messze vannak** a főátlagtól és így implicite **egymástól** is, míg a csoportátlagtól az egyes **megfigyelések nagyon kis mértékben térnek csak el saját csoportátlaguktól**:
+
+<center>
+![](ANOVA_2.jpg){width=35%}
+</center>
+
+Ebben az esetben, ahogy az ábráról is látszik a csoportosításunk, azaz a minőségi változónk magyarázóereje nagy! Tehát az kell nekünk, hogy az $SST$ minél nagyobb részét tegye ki $SSB$, azaz, hogy **az $\frac{SSB}{SST}$ hányados nagy legyen**! Ez a mutató pedig a **variancia-hányados**, és a most elvégzett módszer neve a **variancia-analízis, azaz ANOVA = ANalysis Of VAriances**.
+
+Mivel $SST=SSB+SSR$, így a $\frac{SSB}{SST}$ variancia-hányados biztos, hogy $0-1$ közötti, és **százalékosan** is értelmezhető, hiszen $SSB$ része $SST$-nek. Ez alapján nekünk most:
+
+$\frac{SSB}{SST} = \frac{1956779}{1956779+13970044}=0.1228606=12.3\%$ --> **A CSOK jogosultság az ingatlanárak alakulásának (varianciájának) 12.3%-át magyarázza a megfigyelt mintában!** Ez egy **enyhén közepes magyarázóerő**, mivel a variancia-hányadost a következőképpen "*korszakoljuk*":
+
+- **variancia-hányados < 10% --> gyenge kapcsolat**
+- **10% <= variancia-hányados <= 50% --> közepes kapcsolat**
+- **variancia-hányados > 50% --> erős/szoros kapcsolat**
+
+Szokás értelmezni a vegyes kapcsolat erősségét a variancia-hányados **gyökével**, a **szórás-hányadossal** is. Ez szintén $0-1$ közti mutató, de már **százalékosan NEM értelmezhető**. Mivel a gyökvonás után nem lesz az igaz, hogy $\sqrt{SSB}$ része $\sqrt{SST}$-nek, hiszen tagonként nem lehet gyököt vonni, azaz $\sqrt{SSB+SSR}\neq\sqrt{SSB}+\sqrt{SSR}$<br>
+Emiatt a "*korszakolási  határok*" is gyök alá kerülnek: $\sqrt{0.5}\approx0.7$ és $\sqrt{0.1}\approx0.3$. azért nem vesszük a gyökvonást pontosabban, hogy szórás-hányadosra is "*szép*" számokat kapjunk határoknak:
+
+- **szórás-hányados < 0.3 --> gyenge kapcsolat**
+- **0.3 <= szórás-hányados <= 0.7 --> közepes kapcsolat**
+- **szórás-hányados > 0.7 --> erős/szoros kapcsolat**
+
+Láthatjuk, hogy $\sqrt{0.123}=0.3507$, tehát a *CSOK - Ár* kapcsolat továbbra is küzepes erősségű marad.
+
+### 3.2. Az F-próba vegyes kapcsolatra
+
+A **variancia- és szórás-hányadosok a kapcsolat erejét csupán a megfigyelt mintán belül írják le!** Kell egy **hipotézisvizsgálat annak eldöntésére, hogy a megfigyelt kapcsolat általánosítható-e az ingatlanok sokaságára**, azaz a megfigyelt mintán kívüli világra. Ez a hipotézisvizsgálat az **ANOVA** vagy **F-próba**.
+
+A próba hipotézisei a következők:
+
+- $H_0:$ A kapcsolat a sokaságban nem szignifikáns, azaz **variancia-hányados = 0 a sokaságban**
+- $H_1:$ A kapcsolat a sokaságban szignifikáns, azaz **variancia-hányados > 0 a sokaságban**
+
+Tehát, ebben az esetben $H_1$-nek szurkolunk, mert az állítja azt, hogy a variancia-hányados, azaz a kapcsolat magyarázóereje nem csupán a mintavételi hiba miatt nem nulla az összes magyar ingatlan sokaságában.
+
+A próbának sajnos egy súlyos **előfeltétele, hogy a mennyiségi változó a kapcsolatban mindig legyen normális eloszlású változó**. Hát, ez most a lakásárakra a jobbra elnyúló hisztogram alapján bajosan teljesül:
+
+```{r}
+hist(CSOK$price)
+```
+
+De ha veszem a logaritmusát kicsit szimmetrikusabbá tudom tenni az árak eloszlását:
+
+```{r}
+hist(log(CSOK$price))
+```
+
+Most a kis értékek közül van pár, aminek kimondottan kicsi a többi értékhez a gyakorisága, tehát kicsit balra elnyúló ez a logaritmizált eloszlás is, de enyhébb az aszimmetria, mint a jobbra elnyúló esetben volt. Számoltassunk akkor hát p-értéket úgy, hogy az árak logaritmálva vannak. Feleslegese is vizsgálni a dolgot Shapiro-Wilk-próbával: az enyhe balra elnyúlás miatt úgyis $H_1$ lesz elfogadva.
+
+Ez van, sajnos jobban nem tudjuk kielégíteni ezt a normalitás feltételt.
+
+Ezen kívül az **F-próba azt is felteszi, hogy a mennyiségi változónk szórásai a minőségi változó csoportjai szerint azonosnak vehetők a sokaságban**.<br>
+Ezt egy úgynevezett **Levene-próbával tudjuk ellenőrizni**. A próbában a $H_0$, hogy a **szórások azonosak**, a $H_1$ pedig az, hogy **van legalább egy eltérő szórású csoport**.<br>
+R-ben a próba p-értékét a `levene.test` függvénnyel lehet kiszámolni, ami a `lawstat` csomagban lakik. Telepítsuk és hivatkozzuk is be a csomagot:
+
+```{r eval=FALSE}
+install.packages("lawstat")
+library(lawstat) # Szokásos módon ne törődjünk az esetleges Warningokkal! :)
+```
+```{r echo=FALSE}
+library(lawstat)
+```
+
+Majd használjuk a csomag `levene.test` függvényét. Első paraméter a mennyiségi változó, aminek a szórásait vizsgáljuk (ez most az árak logaritmusa, hiszen a normalitás miatt az fog az F-próbába is menni), második paraméter a minőségi változó, aminek értékei szerint csoportosítjuk a szórásokat:
+
+```{r}
+levene.test(log(CSOK$price), CSOK$CSOK3)
+```
+
+Az eredmény alapján a **p-érték = $0.018=1.8\%$**. Ez azt jelenti, hogy $\alpha=1\%$ mellett $H_0$-t, míg $\alpha=5\%$ mellett már $H_1$-et kell elfogadni. Azaz a **döntés nem stabil**, hiszen nagyon függ $\alpha$ megválasztásától. A korrekt megoldás az, hogy nagyobb mintát kéne venni, amíg a p-érték stabilan $1\%$ alá vagy $10\%$ fölé nem kerül, de ezt nem tudjuk kivitelezni.<br>
+Az $1\%-10\%$ közti úton a p-érték az $1\%$-hoz van közelebb, azaz valószínűbbnek tűnik a $H_1$ igazsága, mint a $H_0$-é, tehát **esélyesebb, hogy az egyező CSOK-jogosultság szerinti szórások feltétele nem teljesül**. De nem is sikerült egyértelműen elutasítani a feltétel $H_0$-ját, szóval "*recsegve-ropogva*", mint a az árak normalitásánál, de továbbmegyünk az **F-próva p-értékének kiszámításához azzal a megjegyzéssel, hogy a p-érték számoláshoz szükséges előfeltételek nem a legszebben teljesülnek**.
+
+Szerencsére csak annyi a titok nyitja az F-próba p-értékéhez, hogy a korábban használt `aov` függvény eredményét kell még beleágyazni egy `summary` függvénybe:
+
+```{r}
+summary(aov(log(price) ~ CSOK3, data = CSOK))
+```
+
+Itt is leolvashatjuk a `Sum Sq` oszlopban az $SS$ mutatóink értékét, és a jobb szélen a `Pr(>F)` oszlopan van egy p-érték is.
+
+Az eredmény alapján a **p-érték kisebb, mint $2\times10^{-16}$**. Ez kisebb még a legkisebb szokásos szignifikancia-szintnél, az $\alpha=1\%$-nál is, így egyértelműen és stabilan elfogadható a $H_1$, ami szerint a CSOK jogosultság magyarázóereje az árakra nézve szignifikánsan több a sokaságban is, mint 0.<br>
+Azaz a **a magyarázóerő NEM a mintavételi hiba műve**.
+
+**Figyelem!** Ilyen 0 közeli p-érték simán kijöhet $10\%$ alatti p-érték esetén is! Ez azt jelenti, hogy az a **gyenge magyarázóerő, amit a mintában értünk általánosítható a mintán kívüli világra is**. Tehát a kapcsolat a sokaságban is megvan. Szóval ilyen **csak a kis p-érték alapján NE mondjuk soha, hogy a kapcsolat erős, mert a p-érték NEM ezt méri!!!** Hanem azt mutatja meg, hogy a **mintában megfigyelt kapcsolat,a minek erősségét a variancia-hányados mutatja ki általánosítható-e a mintán kívüli világra, vagy sem!!!**
+
+Mindenesetre, végkövetkeztetésül azt mondhatjuk el, hogy **a magyar inngatlanpiacon van egy közepes erősségű és az ingatlanok sokaságában is szignifikáns, $12.3\%$-os, közepes magyarázóerejű áremelő hatása annak, ha egy lakás CSOK kedvezményre jogosult**.
+
+## 4. Asszociációs kapcsolat
+
+Vizsgáljuk meg azt, hogy milyen kapcsolatban áll a lakás településének típusa, a `Settlement` (*minőségi* változó) és az, hogy a házra lehet-e CSOK kedvezményt kapni 3 gyerek után (*minőségi* változó).
+
+A kapcsolat jellegét legjobban egy **halmozott oszlop** diagrammal lehet leírni. Ez megmutatja, hogy az egyik minőségi változó kategóriáin (értékein) belül hogyan oszlanak meg a másik minőségi változó kategóriái (értékei).
+
+```{r}
+ggplot(data = CSOK, aes(x = Settlement, fill = CSOK3)) + # y tengely üres, alapból a gyakoriságok kerülnek rá
+  geom_bar() # ez az általános oszlopdiagram: vegyük észre, hogy ez külön ábratípus a hisztogramhoz képest!!
+```
+
+Az ábráról láthatjuk, hogy a legtöbb ingatlant kisvárosokban (*Town*) kínálják eladásra, míg a legkevesebbet a fővárosban, Budapesten. Érzésre azt mondanánk, hogy a CSOK-ra jogosult ingatlanok legnagyobb arányban a kisvárosokban (*Town*) fordulnak elő és Budapesten a legkevésbé, de ezen arányok összehasonlítását így szemmelveréssel nehézzé teszi, hogy az egyes településítpusok oszlopai eltérő méretűek. Hiszen pl. a *Town* kategóriában *azért is van darabra olyan sok CSOK-ra jogosult ingatlan, mert eleve ott van a legtöbb ingatlan*.
+
+Szóval valahogy jó lenne **100%-ig halmozott oszlop** diagrammá alakítani a fenti ábrát, hogy lássuk egyes településtípsok szerint a CSOK-ra jogosult ingatlanok **arányát**. Ezt az átalakítást a `geom_bar` függvény `position` paraméterének `"fill"`-ra állításával érhetjük el:
+
+```{r}
+ggplot(data = CSOK, aes(x = Settlement, fill = CSOK3)) +
+  geom_bar(position = "fill")
+```
+
+Így már látszik is, hogy az előbbi ábrán a szemmel megérzett dolgok tényleg bejöttek. De itt már egyértelműbben látszik, hogy a **legkisebb arányban Budapesten vannak CSOK-ra jogosult ingatlanok és a legnagyobb arányban a kisvárosokban (Town)**. Ez tehát a két változó közti **kapcsolat jellege**.
+
+Nézzük meg hogyan lehet a színezést mondjuk egy másik színpalettáról megoldani! Egy új réteg hozzáadásával lehet szabályozni, hogy az `aes` függvényben megadott `fill` színpalettáját:
+
+```{r}
+ggplot(data = CSOK, aes(x = Settlement, fill = CSOK3)) +
+  geom_bar(position = "fill") +
+  scale_fill_brewer(palette="Dark2") # az új, színkitöltést (fill) szabályozó réteg
+```
+
+Csudiszép sötét tónusú színeink lettek a halmozáshoz! :) A színpalettákról, és a színváltoztatás még bővebb rejtelmeiről `ggplot2`-ben [ezen](http://www.sthda.com/english/wiki/ggplot2-colors-how-to-change-colors-automatically-and-manually) a linken mélyebben is olvashatsz.
+
+Megnézhetjük a diagram mögötti **kétváltozós gyakorisági táblázat** (leánykori nevén *kereszttábla* vagy *kontingencia tábla*) tényleges gyakoriság adatait is. Ehhez egy ismerős függvényt, a `table`-t kell alkalmazni a két vizsgált nominális változóra:
+
+```{r}
+table(CSOK[,c("Settlement", "CSOK3")])
+```
+
+A táblából látszik, hogy *1685* darab budapesti és CSOK-ra jogosultingatlan található a táblában.
+
+A `prop.table` bevetésével az arányok is ismét lekérdezhetők:
+
+```{r}
+round(prop.table(table(CSOK[,c("Settlement", "CSOK3")]))*100, 1)
+```
+
+A kisvárosokban (*Town*) lévő CSOK-ra jogosult lakások aránya a tábla teljes elemszámhoz képest 22.3%.
+
+De itt már lekérhetjük az úgynevezett **peremeloszlásokat** is! Pl. ha külön szeretnénk megnézni a budapesti ingatlanokon **belül** a CSOK-ra jogosultak arányát:
+
+```{r}
+round(prop.table(table(CSOK[,c("Settlement", "CSOK3")]), 1)*100, 1)
+```
+
+Budapesten a CSOK-ra jogosult ingatlanok aránya 64.2%, míg kisvárosokban (*Town*) már 10 %-ponttal magasabb, 74.2%.
+
+A `prop.table` függvény **második paraméter**ében lévő $1$ adta meg, hogy az **arányosítást** a sorrendben először átadott változó, azaz a **Settlement részösszegei szerint** nézzük.
+
+### 4.1. A Cramer-együtható
+
+A két minőségi változó **kapcsolatának szorosság**át egy **Cramer-együttható** néven futó mutatószámmal tudjuk mérni.
+
+A számolás alapötlete, hogy a fentebb, a `table` függvénnyel létrehozott kétváltozós gyakorisági táblából legyárt egy olyan verziót, hogy a *kapcsolat teljes hiánya, azaz függetlenség* esetén ez hogy *nézne* ki. Tehát pl. kiszámolja azt, hogy hány budapesti CSOK-ra jogosult lakás lenne, ha a két változó 0%-ban magyarázná egymást.<br>
+Majd a függetlenség esetén fennálló elvi és a fentebb kiszámolt valós gyakorisági táblák **távolságát méri ez a Cramer mutató egy $0-1$ közötti skálán**. Maga a mutató tehát $0-1$ közötti, de **NEM értelmezzük százalékban**, mivel a műveletei között van egy *gyökvonás*, így a **szórás-hányadossal összemérhető mutató**.
+
+Ennek megfelelően a **Cramer-együttható értelmezési határai az alábbiak**:
+
+- **Cramer < 0.3 --> gyenge kapcsolat**
+- **0.3 <= Cramer <= 0.7 --> közepes kapcsolat**
+- **Cramer > 0.7 --> erős/szoros kapcsolat**
+
+A mutatót számolni R-ben a `questionr` csomag `cramer.v` függvényével lehet. Telepítsük is a csomagot és hivatkozzuk be a függvényeit R-be:
+
+```{r eval=FALSE}
+install.packages("questionr")
+library(questionr) # Szokásos módon ne törődjünk az esetleges Warningokkal! :)
+```
+```{r echo=FALSE}
+library(questionr)
+```
+
+Eresszük is rá rögtön a `cramer.v` függvényt a **Settlement** és **CSOK3** minőségi változókból a `table` függvénnyel készült **kereszttáblára**.
+
+```{r}
+cramer.v(table(CSOK[,c("Settlement", "CSOK3")]))
+```
+
+Az eredményül kapott $0.0786$-ra kerekítható érték **gyenge erősségű** kapcsolatot mutat a két minőségi változónkra a *fentebb megadott értékhatárok szerint*. Tehát annyira nem erős összefüggés az, amit kimutattunk a halmozott oszlopdiagrammal, hogy jellemzően a kisvárosokban (*Town*) vannak a CSOK-ra jogosult ingatlanok.
+
+### 4.2. A Khi-négyzet próba
+
+A variancia-hányadoshoz hasonlóan, a **Cramer-együttható is csak a megfigyelt mintában írja le a kapcsolat szorosságát, de a megfigyelt lakásokon kívüli világról nem mond semmit**.
+
+Ide is kell egy **hipotézisvizsgálat annak eldöntésére, hogy a megfigyelt kapcsolat általánosítható-e az ingatlanok sokaságára**, azaz a megfigyelt mintán kívüli világra. Ez a hipotézisvizsgálat a **Khi-négyzet próba** vagy $\chi^2$-próba. A $\chi$ a "*Khi*" görög betű szimbóluma.
+
+A próba hipotézisei a következők:
+
+- $H_0:$ A kapcsolat a sokaságban nem szignifikáns, azaz **Cramer-együttható = 0 a sokaságban**
+- $H_1:$ A kapcsolat a sokaságban szignifikáns, azaz **Cramer-együttható > 0 a sokaságban**
+
+Tehát, ebben az esetben $H_1$-nek szurkolunk, mert az állítja azt, hogy a Cramer-együttható, azaz a kapcsolat magyarázóereje nem csupán a mintavételi hiba miatt nem nulla az összes magyar ingatlan sokaságában.
+
+A próba elvégzésének előfeltétele, hogy a két minőségi változó szerinti gyakorisági táblában minden érték legyen **legalább 5**.
+
+Gyorsan ellenőrizhető, hogy ezt a feltételt teljesítjük:
+
+```{r}
+table(CSOK[,c("Settlement", "CSOK3")])
+```
+
+A hipotézisvizsgálathoz p-értéket a `chisq.test` függvénnyel kapunk, amit a kétdimenziós gyakorisági táblára kell ráengedni, mint ahogy a `cramer.v` függvényt is kellett.
+
+```{r}
+chisq.test(table(CSOK[,c("Settlement", "CSOK3")]))
+```
+
+Az eredmény alapján a **p-érték kisebb, mint $2\times10^{-16}$**. Ez kisebb még a legkisebb szokásos szignifikancia-szintnél, az $\alpha=1\%$-nál is, így egyértelműen és stabilan elfogadható a $H_1$, ami szerint a településtípus (*Settlement*) magyarázóereje a CSOK jogosultság nézve szignifikánsan több a sokaságban is, mint 0.<br>
+Azaz a **a magyarázóerő NEM a mintavételi hiba műve**.
+
+**Figyelem!** Attól, hogy a magyarázóerő szignifikáns hatással bír a sokaságban, attól az még egy **gyenge magyarázóerő** a Cramer-együttható alapján.
+
+Tehát, azt mondja az eredmény, hogy azt **a gyenge erősségű kapcsolatot lehet kiálítalánosítani a lakások sokaságára is a mintából, ami szerint a CSOK-ra jogosult lakások leginkább a kisvárosokra** (*Town*) és **legkevésbé Budapestre jellemzők**.
+
+## 5. Korrelációs kapcsolat
+
+Most egy picit váltsunk adatbázist és olvassuk be a Moodle-n található *PreventableMortality_Eurostat.xlsx* című fájlt. Ebben az adattáblában az EU $30$ országáról található $4$ változó. Az adatok forrása az [Eurostat](https://ec.europa.eu/eurostat/web/health/overview):
+
+- **Country**: Az ország neve
+- **Smokers**: Az országban a dohányzó népesség aránya (%)
+- **HealthExp**: Az ország egészségügyi kiadásai a GDP %-ban
+- **PreventableMortality**: 100 ezer főre jutó halálozások száma az országban 75 éves kor alatti megelőzhető betegségekből (pl. tüdőrák, alkohol okozta intoxikáció, szívroham)
+
+Olvassuk is be a fájl tartalmát egy **Mort** nevű `data frame`-be a `readxl` csomag segítségével:
+
+```{r}
+library(readxl)
+Mort <- read_excel("PreventableMortality_Eurostat.xlsx")
+str(Mort)
+```
+
+Szuper, megvan mind a $30$ ország, mind a $4$ változóval! Láthatjuk, hogy igazából a **Country** kivételével (ami amúgy is csak az azonosító szerepét játsza a táblában) minden változónk *mennyiségi változó*, azaz numerikus adat.
+
+Ez azt jelenti, hogy ha meg akarjuk tudni, hogy a megelőzhető halálokokból származó halálozást egy országban a népesség általános egészségi állapota (ami leírható a dohányzók arányával) vagy az egészségügyi kiadások mértéke magyarázza jobban, akkor **korrelációs kapcsolatvizsgálat**ot kell végeznünk!
+
+A korrelációs kapcsolatvizsgálat legfontosabb mutatója nem meglepő módon egy **korreláció** nevű mutatószám, amit $r$-el jelölünk!<br>
+Ez a mutatószám **két mennyiségi változó kapcsolatát egy $[-1,+1]$ skálán írja le**, azaz $-1 \leq r \leq +1$.
+
+Számolni R-ben könnyen lehet, csak a `cor` névre hallgató függvényt kell ráreszteni a két vizsgált változóra.
+
+```{r}
+cor(Mort$PreventableMortality, Mort$HealthExp)
+cor(Mort$PreventableMortality, Mort$Smokers)
+```
+
+Láthatjuk, hogy a két vizsgált korrelációs kapcsolatra két **eltérő előjelű** korrelációt kaptunk.<br>
+Ez fontos infó, mivel a **korreláció előjele mutatja meg a kapcsolat irányát**:
+
+- **Pozitív** korreláció: **egyirányú kapcsolat** a két változó között. Ha nő az egyik, akkor várhatóan nő a másik is.
+- **Negatív** korreláció: **ellentétes kapcsolat** a két változó között. Ha nő az egyik, akkor várhatóan csökken a másik.
+
+Ez alapján azt mondhatjuk el, hogy a negatív előjel miatt az egészégügyi kiadások között ellentétes irányú kapcsolat van: ha nőnek az egészségügyi kiadások a GDP %-ban, akkor várhatóan csökken a megelőzhető okokból származó halálozás 100 ezer főre. Ez az ellentétes irányú mozgás logikus, ilyesmire számítottunk.
+
+A dohányzó népesség aránya és a megelőzhető halálozás közti pozitív korreláció is logikus, hiszen ez azt mondja, hogy a dohányzó népesség arányának növekedésével várhatóan a megelőzhető halálozás növekedése is együttjár.
+
+Az előjel értelmezése után a következő dolog, amire ránézünk az a **korreláció abszolút értéke**. Ugyanis ez írja le a két változó közti kapcsolat közötti **kapcsolat erősségét/szorosságát**. Mivel ez az abszolút érték alapvetően egy $[-1,+1]$ intervallumon értelmezett mutatószámból képződött meg, így **NEM értelmezhető százalékosan**!! Hiába eredményez az abszolút érték művelet egy $0-1$ közötti értéket!<br>
+Azaz, a korreláció abszolút értékének értelmezési határai a **Cramer-együtthatóval és a szórás-hányadossal rokoníthatók**:
+
+- **$|r|$ < 0.3 --> gyenge kapcsolat**
+- **0.3 <= $|r|$ <= 0.7 --> közepes kapcsolat**
+- **$|r|$ > 0.7 --> erős/szoros kapcsolat**
+
+Tehát, azt mondhatjuk, hogy **az egészségügyi kiadások és a megelezőzhető halálozás közti kapcsolat ellentétes irányú és közepes erősségű**. Míg a **dohányzók aránya és a megelőzhető halálozás közti kapcsolat egyirányú** és szintén **közepes erősségű**.
+
+### 5.1. A determinációs együttható
+
+Ugyanakkor, minden további nélkül **négyzetre lehet emelni a korrelációt**, és akkor megkapjuk a **determinációs együttható** című mutatószámot, amit szokás csak a számolási módból adódóan **R-négyzet** mutatónak is hívni: $R^2=r^2$
+
+A négyzetre emelés miatt ez a mutatószám alapból a $0-1$ intervallumon értelmezett, és így **szazalékosan értelmezhető**, azaz a **variancia-hányadossal rokonítható**.<br>
+Ennek megfelelően a **determinációs együttható értelmezési határai** is a variancia-hányadosnak megfelelően alakulnak:
+
+- **$R^2$ < 10% --> gyenge kapcsolat**
+- **10% <= $R^2$ <= 50% --> közepes kapcsolat**
+- **$R^2$ > 50% --> erős/szoros kapcsolat**
+
+Mivel mindkét korrelációnk abszolút értékben $0.3$ és $0.7$ közé esett, így mindkét kapcsolatunk **közepes erősségűnek** mondható, de a **magasabb korreláció abszolút érték miatt azt mondhatjuk, hogy a megelőzhető halálozás szorosabb kapcsolatban áll az egészségügyi kiadásokkal, mint a dohányzó népesség arányával**.<br>
+Ezt megerősíti a determinációs együttható is, ha kiszámoljuk őket egy négyzetre emeléssel:
+
+```{r}
+cor(Mort$PreventableMortality, Mort$HealthExp)^2
+cor(Mort$PreventableMortality, Mort$Smokers)^2
+```
+
+Az értékeket úgy is értelmezhetjük, hogy a dohányzó népességaránya kb. $24\%$-ban magyarázza a megelőzhető halálozások számának alakulását, míg az egészségügyi kiadások kb. $39\%$-ban. Mindkét magyarázóerő a közepes erősségű kapcsolat tartományában (10 és 50% között) mozog, de az egészségügyi kiadások magyarázóereje kb. **15 százalékponttal magasabb**.
+
+Továbbá fontos megjegyezni az $R^2$-ek kapcsán, hogy mindkét érték **pozitív** (ami a négyzetre emelés miatt nem meglepő), azaz a **determinációs együttható már NEM hordozza a kapcsolat irányára vonatkozó információt**!<br>
+Tehát, az $R^2$ a *százalékos értelmezés oltárán feláldozza a kapcsolat irányának információját*!
+
+### 5.2. A korrelációs kapcsolat vizualizálása
+
+A korrelációs kapcsolatnak van egy nagyon szép **vizuális megjelnítési lehetősége** is! Vegyük a **két mennyiségi változónk értékeit úgy, mint $x$ és $y$ koordináta párokat, és ábrázoljuk az általuk megadott pontokat pontdiagramon**!
+
+**FIGYELEM**! Ezen a ponton el kell döntenünk, hogy mit rakjunk a diagram $x$ és $y$ tengelyeire! Ez azért fontos, mert a pontdiagram az $y$ adatot mutatja majd az $x$ tengelyen lévő adat **függvényében**. Azaz, az $x$ adattal magyarázzuk $y$-t!<br>
+Innentől kezdve pedig az $x$ tengeylen lévő változót **magyarázóváltozó**nak, az $y$ tengelyen lévő változót pedig **eredményváltozó**nak hívjuk!<br>
+Ez azért nagyon fontos, mert a korreláció és az $R^2$ ilyen megkülönböztetést **nem tesz**! Ez a két mutató csak a változók **együttmozgás**át nézte! **NEM** volt benne szükség **oksági irányok, azaz magyarázó- és eredményváltozó kijelölésére**!<br>
+Viszont, onnantól kezdve, hogy a kapcsolatot **pontdiagramon** ábrázoljuk, erre a megkülönböztetésre, azaz **oksági irányok kijelölésére, szükség lesz**.
+
+Lássuk akkor a dolgot mondjuk az *egészségügyi kiadások* és *megelőzhető halálozás* esetére! Logikus oksági irány itt az lesz, hogy a **HeathExp**-et tekintem **magyarázóváltozó**nak, míg a **PreventableMortality**-t **eredményváltozó**nak.<br>
+Vegyük elő a `ggplot` függvényt, adjuk meg benne a használni kívánt `data frame`-et, az ábrán az `x` és `y` koordinátákat jelölő változókat és szóljunk a gépllatnak, hogy ezekre a koordinátákra pontdiagramot rajzoljon a `geom_point` függvénnyel:
+
+```{r}
+ggplot(Mort, aes(x=HealthExp, y=PreventableMortality)) + geom_point()
+```
+
+Az ábrán szépen kirajzolódik a **negatív korreláció**: ha az $x$ tengelyen előrehaladunk, azaz az egészégügyi kiadások GDP százalékos arányát növeljük, akkor az $y$ tengelyen várhatóan *lefelé* kell lépnünk.<br>
+Továbbá megfigyelhető a **kapcsolat közeoes erőssége** is: a pontokra aránylag jó pontossággal illeszthető egy negatív meredekségű egyenes, amitől a konkrét pontok *némileg eltérnek, de nem nagyon nagy mértékben*: a csökkenő tendencia még szemmel láthatóan kirajzolódik.
+
+### 5.3. A regressziós egyenes
+
+A második ponton menjünk tovább egy kicsit. Ez alapján a kapcsolat erőssége miatt a pontokra behúzható egy egyenes, ami az $R^2$ alapján a pontok alakulásának, szóródásának kb. $39\%$-át le tudja írni. Próbáljuk meg behúzni a fent pontdiagramon ezt a **pontokra legjobben illeszkedő egyenest**! A statisztikai szaknyelvben ennek az egyenesnek a neve **regressziós egyenes**.
+
+A `ggplot` világában ezt a pontokra legjobban illeszkedő egyenest az ábrán egy `geom_smooth(method=lm)` réteg hozzáadásával lehet előcsalni:
+
+```{r}
+ggplot(Mort, aes(x=HealthExp, y=PreventableMortality)) + geom_point() + geom_smooth(method=lm)
+```
+
+A csodaszép kék színű *regressziós egyenes* mellett egy **szürke sáv jelöli az egyenes 95%-os megbízhatóságú konfidencia-interavallumát**, tehát **ebben a sávban mozoghat a regressziós egyenes a mintán kívüli, tehát az adatbázisban nem megfigyelt országok körében 95%-os valószínűséggel**.<br>
+Természetesen, ez a konfidencia-intervallum csak olyan országokra értendő, amelyek hasonlóan viselkednek a vizsgált változókban a jelen adatbázisban vizsgált 30 EU országhoz képest.
+
+Láthatjuk tehát, hogy a pontokra legjobban illeszkedő egyenes **negatív meredekségű**, és bár **vannak pontok amik jobban eltérnek tőle, de a legtöbb konkrét ország azért követi az egyenes által felvázolt** ellentétes irányú **kapcsolatot**.<br>
+Ez rímel arra, amit a **korreláció**ból is láttunk: a kapcsolat **ellentétes irányú és közepes erősségű**.
+
+Ez mind szép és jó, de **honnan tudom leolvasni az egyenes egyenletét**?
+
+Általánosságban egy egyenes egyenlete középiskolás ismereteink alapján a következő alakot ölti:$$y=mx+b$$
+
+Ebben a felírásban az $m$-et hívjuk az egyenes **meredekségének**, míg a $+b$ konstansot az egyenes **tengelymetszetének**, hiszen az egyenesünk az $y$ tengelyt pont az $x=0$ pontban, azaz $y=m \times 0 + b=b$-nél metszi.
+
+Ez az általános felírás a statisztikában a következőre módosul: $$\hat{y}=\beta_1x+\beta_0$$
+
+A felírásban a **meredekség** $\beta_1$-é, a **tengelymetszet** $\beta_0$-á történő átkeresztelése csupán a görög betűk fetisizálásából jön. :)<br>
+Ami viszont fontos, hogy **az $y$ koordináta $\hat{y}$-ra változott**!
+
+Ez arra utal, hogy amikor egy tetszőleges ország $x$-ét **behelyettesítjük a regressziós egeynes egyenletébe**, akkor **csak egy becslést kapunk az $y$ értékére ($\hat{y}$), és NEM a valós $y$-t látjuk viszont**!<br>
+Hiszen a regressziós egyenes pontossága az $R^2$ alapján csak $39\%$ és **NEM** $100\%$!!
+
+Lássuk a jelenséget Magyarország példáján. Szűrjük le a `data frame`-t a magyar adatokra:
+
+```{r}
+Mort[Mort$Country=="Hungary",]
+```
+
+A magyar egészségügyi kiadások tehát kb. $6.79\%$-ot tesznek ki a GDP-ben, és 100 ezer főre $326.97$ megelőzhető haláleset jut. Ezt a párosítást az alábbi ábrán a *piros* pont jelöli. Ehhez képest a **regressziós egyenes szerint Magyarországon csak kb. $210$ megelőzhető halálesetnek kellene lennie 100 ezer főre** = *kék* pont.
+
+<center>
+![](RegressionLine.jpg){width=60%}
+</center>
+
+Ezen két érték közti különbség miatt számít az $y$ és $\hat{y}$ jelölés!
+
+No, de akkor! Honnan is lesz meg nekünk a regressziós egyenes $\beta_1$ meredeksége és $\beta_0$ tengelymetszete?
+
+Ehhez az R `lm` függvénye lesz segítségünkre, amivel létrehozzuk az  R memóriájában a *regressziós modellt*, amiben benne lesznek a regressziós egyenes paraméterei, azaz $\beta$-i is!
+
+A függvényben `eredményváltozó ~ magyarázóváltozó` módon adjuk meg $y$-t és $x$-et, majd a `data` paraméterben annak a `data frame`-nek a nevét kapja meg a függvény, amiben az eredményváltozó és a magyarázóváltozó lakik. Nagyon hasonló a dolog ahhoz, amit vegyes kapcsolatnál az `aov` függvényben is láttunk!
+
+```{r}
+lm(PreventableMortality ~ HealthExp, data = Mort)
+```
+
+Az `lm` eredményéből gyorsan le is olvashatjuk a regressziós együtthatókat:
+
+- $\beta_0=368.02$
+- $\beta_1=-22.98$
+
+Tehát, a **teljes regressziós egyenes egyenlete**: $$\hat{y}=368.02-22.98x$$
+
+Használjuk is az egyenletet Magyarország kb. $x=6.79\%$-os GDP arányos egészségügyi kiadások esetére. Ekkor a *becsült* megelőzhető halálozások száma 100 ezer főre: $368.02-22.98 \times 6.79=211.9838$ fő. Ami $326.97-211.9838=114.9862$ fővel alacsonyabb, mint a valós érték.
+
+A becsült eredményváltozó értékeket, azaz a $\hat{y}$-okat az R `predict` függvényével ki tudjuk számolni egy `data frame` minden megfigyelésére, azaz minden sorára is!<br>
+Ehhez csak *el kell mentenünk az `lm` függvény eredményét* egy objektumba, és azt beadni a `predict` függvénynek a `data frame` nevével együtt, amibe a predikciókat akarjuk csinálni. A `data frame`-ben nyilván egy új oszlopot kell létrehozni `$` jellel a regressziós becsléseknek:
+
+```{r}
+RegModell <- lm(PreventableMortality ~ HealthExp, data = Mort)
+Mort$BecsultHalal <- predict(RegModell, newdata = Mort)
+head(Mort)
+```
+
+Láthatjuk, hogy megvan az új, **BecsultHalal* oszlopunk! Értéke Magyarországra pedig $211.96$! Ez kicsit eltér attól, amit mi számoltunk manuálisan, mert a $\beta$-k, amiket mi használtunk kerekített értékek voltak.
+
+Ezen kívül fontos megjegyezni, hogy a regressziós egyenes $\beta_1$ és $\beta_0$ együtthatóinak **fontos jelentéstartalmat is tudunk adni**:
+
+- $\beta_0$: Az **$x=0$ helyen becsült $y$**, azaz $\hat{y}$, amikor $x=0$. Csak akkor értelmezhető, ha az adatbázis szövegkörnyezetében az $x=0$ értelmezhető!
+- $\beta_1$: Ez ugyebár egy meredekség, azaz megadja, hogy egyet lépünk jobbra a pontdiagram $x$ tengelyén, akkor mennyit kell lépni az $y$ tengelyen, hogy az egyenesen maradjunk. Ez statisztikásabban: **egy egység $x$ növekedés $\beta_1$-nyi $\hat{y}$ változással jár együtt**
+
+Nézzük a dolgot konkrétaban, a mi együtthatóinkra:
+
+```{r}
+RegModell
+```
+
+A mi $\beta_0$-ánk most **egy elvi érték**, hiszen azt mondaná el, hogy az **az ország, ami a GDP 0 %-át költi a GDP-re, 100 ezer főre nézve $368.02$ megelőzhető halálesettel számolhat a modellünk szerint**. Nyilván, nincs olyan ország, ami 0%-ot költ GDP-re, így az eredmény egy elvi dolog. Bár az elég aggasztó, hogy Magyarország a $326.97$-es értékével ilyen közel áll a tengelymetszet értékéhez!
+
+A mi $\beta_1$-ünk azt mondja most el, hogy ha a **GDP arányos egészségügyi kiadásait egy ország 1 százalékponttal megemeli, akkor várhatóan $22.98$ fővel kevesebb megelőzhető halálesettel számolhat 100 ezer főre**. Vagy, ha kicsit játszunk a mértékegységekkel, akkor azt is mondhatjuk, hogy **Ha a GDP 1 százalékponttal nagyobb részét költjük egészségügyre, akkor várhatóan durván 2.29 millió ($22.98 \times 10^5=2298000$) emberélet menthető meg**. De ez már nagyon demagóg...
+
+A $\beta_1$ értelmezésnél **két dologról ne feledkezzetek el**:
+
+1. Mindig legyen ott, hogy a $\beta_1$, csak az $\hat{y}$ változását, azaz a valós **$y$ várható változását** írja le!
+2. Mind $x$-nek, mind $y$-nak a **saját mértékegységét** használjátok az értelmezés során. **Ne ragadjatok le az általános 'egység' szó használatánál**!
+
+### 5.4. A regressziós egyenes együtthatóinak hipotézsvizsgálata
+
+A **korrelációs kapcsolatok jelenlétét a sokaságban**, azaz a mintán kívüli világban, a regressziós egyenes **$\beta_1$ együtthatóján keresztül vizsgáljuk**.
+
+Hiszen, ha a két mennyiségi változó közötti **kapcsolat**, amit a korrelációval mértünk **csak a mintavétreli hiba eredménye, és NEM áll fenn a sokaságban, akkor** ott egy egység $x$ növekedés $0$-val változtatja várhatóan $y$-t, azaz **$\beta_1=0$-nak vehető**.
+
+Tehát, a következő $H_0$ és $H_1$ párost vizsgáljuk a korrelációs kapcsolat esetén:
+
+- $H_0: \beta_1 = 0$
+- $H_1: \beta_1 \neq 0$
+
+A $H_1$-ben lévő $\neq$ jel miatt ez egy **kétoldali** hipotézisvizsgálat.
+
+A próbához **p-érték**et úgy találunk, hogy a `summary` függvényt ráeresztjük az `lm` függvény eredményét tartalmazó R objektumra, ami jelen esetünkben **RegModell** névre hallgat:
+
+```{r}
+summary(RegModell)
+```
+
+Az eredményül kapott output táblában sok minden látszik. Pl. leolvasható az $R^2=0.3884\approx39\%$ is.<br>
+De itt vannak a $\beta_1=-22.976$ és $\beta_0=368.018$ értékek is 3 tizedesjegy pontossággal a `Coefficients` tábla `Estimate` oszlopában.
+
+De ami **nekünk kell, az a `Coefficients` tábla `Pr(>|t|)` oszlopában lakik**! Itt vannak a **p-értékek** a $H_0: \beta_j = 0$ és $H_1: \beta_j \neq 0$ hipotézis párokhoz! Nyilván a $j=0$ eset, azaz a **tengelymetszet nem érdekel minket**, de a **meredekség, azaz a $j=1$ eset igen**!<br>
+Most pedig azt látjuk, hogy a **p-érték**ünk $0.000234$, ami **kisebb** mint a legksiebb szokásos szignifikancia-szint, azaz $\alpha=0.01$. Szóval minden szokásos stignifikancia-szinten **elutasítható** az a **$H_0$, miszerint a regressziós egyenes meredeksége a megfigyelt adatokon túli világban $0$** lenne!<br>
+*Örömésbódogság* van! A regressziónk új megfigyeléseken, új országokon is használható! :)
+
+Ami még érdekes lehet a nagy output táblázatból az a `Residual standard error: 53.94` rész. Ez a **reziduális standard hiba** megadja, hogy egy regresszióból **becsült $\hat{y}$ várhatóan/átlagosan mennyivel tér el a hozzá tartozó valós $y$-tól**!<br>
+Esetünkben ez most annyit tesz, hogy **egy regressziós becslés a 100 ezer főre jutó megelőzhető halálozások számára várhatóan $\pm 53.94$-gyel tér el a valós megelőzhető halálozások számától**.<br>
+Ezt a standard hibát használja amúgy a `ggplot` függvény is a regressziós egyenes 95%-os megbízhatóságú *konfidencia-interavllumának megszerkesztésére* is.
+
+### 5.5 Regressziós mutatók a dohányzók aránya és a megelőzhető halálozások viszonylatában
+
+Gyakorlásképpen gyorsan tekintsünk át egy regressziós összegző táblát akkor is, ha **magyarázóváltozó a dohányzó népesség aránya**, és az **eredményváltozó** továbbra is a **100 ezer főre jutó megelőzhető halálozások száma**.
+
+Készítsük el a regressziós modell összegző tábláját R-ben:
+
+```{r}
+summary(lm(PreventableMortality ~ Smokers, data = Mort))
+```
+
+Majd vegyük sorra az eredményeket:
+
+- A dohányzó népesség aránya kb. $24\%$-ban magyarázza a megelőzhető halálozások alakulását.
+- Ha a népességben 1 százalékponttal több a dohányzó, az *várhatóan* $6.4$ fővel növeli a megelőzhető halálozásokat 100 ezer főre.
+- Ez az előbbi hatás az országok sokaságában is jelentős, azaz **szignifikáns** marad, mivel a meredekséghez rendelt $0.00544$-es **p-érték alapján** a legkisebb szokásos szignifikanica szinten (1%) is **elutasítható** az a nullhipotézis, miszerint a **regressziós meredekség 0 lenne** a nem megfigyelt országok körében.
+- A dohányzó népesség aránya alapján a regresszióból származó becslések a 100 ezer főre jutó megelőzhető halálozásra várhatóan $\pm 59.94$ fővel térnek el a valós értéktől.
+- Ez a magasabb becslési hiba is azt mutatja, hogy a 100 ezer főre jutó megelőzhető halálozások száma jobban becsülhető a GDP arányos egészségügyi kiadásokkal (ha ez a magyarázóváltozó, akkor ez a hiba ugyebár $\pm 53.94$ fő volt), mint a dohányos népesség arányával.
+
+Megnézhetjük, hogyan alakul a pontdiagramunk és a trendvonalunk akkor, ha az $x$ tengelyre a dohányzó népesség arányát rakjuk a GDP arányos egészségügyi kiadások helyett:
+
+```{r}
+ggplot(Mort, aes(x=Smokers, y=PreventableMortality)) + geom_point() + geom_smooth(method=lm)
+```
+
+Szépen kivehető azért a pontokból, hogy a **legjobban rájuk illesztehtő egyenes pozitív meredekségű**. Értelemszerűen ennek amúgy **meg kell egyeznie a két változó közti korreláció előjelével, ami itt szintén pozitív volt**:
+
+```{r}
+cor(Mort$PreventableMortality, Mort$Smokers)
+```
+
+Érdemes továbbá megfigyelni, hogy az regressziós egyenes 95%-os megbízhatóságú **konfidencia-intervalluma kitágul az egyenes szélein, ahol aránylag kevés megfigyels található**. Ez egybevág azzal, amit a konfidencia-intervallumoktól tanultunk: az **elemszám növelésével pontosabb becsléseket kapunk, azaz csökkenteni lehet a konfidencia-intervallum hosszát a megbízhatósági szint változatlansága mellett is**!
+
+## 6. Korrelációs kapcsolat egy minőségi változó szerint megbontva
+
+Záróakkordként térjünk egy kicsit vissza a **CSOK** `data frame`-hez, és vizsgáljuk meg az ingatlan területének -**area** - és árának - **price** - kapcsolatát grafikusan pontdiagramon. Logikus módon legyen **terület a magyarázóváltozó és az ár az eredményváltozó**:
+
+```{r}
+ggplot(CSOK, aes(x=area, y=price)) + geom_point() + geom_smooth(method=lm)
+```
+
+Ez egy **szép egyirányú kapcsolat** (logikusan a terület növekedése jellemzően növeli az árakat), ami **közepes erősségűnek tűnik**: a pozitív meredekségű regressziós egyenes szépen kirajzolódik, de pár kilógó pont miatt azért messzebbre szakad az egyenestől.<br>
+Mindez a korreláció $0.3$ és $0.7$ közötti abszolút értéke és poziítv előjele is megerősíti:
+
+```{r}
+cor(CSOK$area, CSOK$price)
+```
+
+NODE, nézzük meg a kapcsolat alakulását egy **minőségi** változó, pl. **településtípus, azaz Settlement szerint külön-külön**! Ezt úgy tudjuk elérni, hogy a **pontokat megszínezzük településtípus szerint**!
+
+Ezt úgy tudjuk eléreni, hogy a `ggplot`-ban az `aes` függvénybe becsempészünk egy `color=Settlement` beállítást:
+
+```{r}
+ggplot(CSOK, aes(x=area, y=price, color=Settlement)) + geom_point() + geom_smooth(method=lm)
+```
+
+Voilá, a pontok szép színesek, és van **minden településtípusra külön regressziós egyenesünk is**! És nagyon szépen látjuk, hogy **Budapest egyenese meredekebb, azaz Budapesten egy extra négyzetméter jobban növeli az árat, mint a többi településtípusban**!
+
+Még a **City kategória egyenese is meredekebben fut, mint a Town és Village egyenesek**.
+
+Viszont, a **Town és Village egyenesekre azt mondhatjuk, hogy érdemben nem térnek el egymástól, mivel 95%-os konfidencia-intervallumuk több helyen is METSZ EGYMÁST**! tehát, 95%-os valószínűséggel a két regressziós egyenes azonos tartományon fut a megfigyelt ingatlanokon túli világban!
+
+A konkrét **regressziós egyenesek egyenletei** most is egy `lm` függvényre eresztett `summary`-vel kaphatók meg. Csak a magyarázóváltozókhoz be kell pakolni `+` jellel elválasztva egy `Settlement*area` szorzatot:
+
+```{r}
+summary(lm(price ~ area + Settlement*area, data = CSOK))
+```
+
+Az eredményből több dolgot is leolvashatunk. Az **R-négyzet** most azt mutatja meg, hogy a **település típusa és a terület együttesen $46.78\%$-ban magyarázza meg a lakásárak alakulását**.
+
+A `Coefficients` táblában pedig látunk egy alap `(Intercept)` és `area` értéket. No, ezek a **tábla lentebbi soraiban NEM szereplő Budapest regressziós egyenesének $\beta$ együtthatói**!<br>
+A táblában lejjebb pedig megtalálható, hogy az **egyes településtípusokban a tengelymetszet, és a meredekség mennyivel TÉR EL Budapest értékeitől**!
+
+Ezek alapján az **egyes településtípusok regressziós egyenesei az alábbiak**:
+
+- **Budapest**: $\hat{price}=15.7+0.54 \times area$
+- **City**: $\hat{price}=15.7-0.4+(0.54-0.28) \times area = 15.3+0.26 \times area$
+- **Town**: $\hat{price}=15.7+4.8+(0.54-0.34) \times area = 20.5+0.20 \times area$
+- **Village**: $\hat{price}=15.7-11.8+(0.54-0.32) \times area = 3.9+0.22 \times area$
+
+Ezek alapján Budapesten egy extra négyzetméter várhatóan $0.54$ MFt-tal (540 EFt-tal) növeli az árakat, míg egyéb kisvárosokban (Town) csak $0.20$ MFt-tal (200 EFt-tal).
+
+A `Coefficients` tábla `Pr(>|t|)` oszlopában lévő **p-értékek**ből látszik, hogy csak egy együtthatóra tudjuk elfogadni minden szokásos $\alpha$-n (azaz még a legnagyobb $10\%$-on is) azt a $H_0$-t, hogy ő a sokaságban $0$-nak vehető: a **SettlementCity**-ra, $0.704=70.4\%$-os p-értékkel.<br>
+Ez az együttható pedig a **City**-k regressziós egyenesének **tengelymetszetét módosítja Budapest regressziós egyenesének tengelymetszetéhez képest**. Na, **ez a változás $0$-nak vehető az ingatlanok sokaságában**. Tehát az, hogy ez itt most $-0.40$ lett és nem csont $0$, az *csak a mintavételi hiba műve*.
+
+Érdekességképpen megnézhetjük, hogy mi van akkor, ha a **referencia egyenes NEM Budapest, hanem mondjuk a Village**. Ezt beállítani az R `relevel` függvényéval lehet az alábbi módon:
+
+```{r}
+CSOK$Settlement <- relevel(CSOK$Settlement, ref = "Village")
+```
+
+Ezek után futtassuk újra a regresszió eredményeit:
+
+```{r}
+summary(lm(price ~ area + Settlement*area, data = CSOK))
+```
+
+Láthatjuk, hogy most a **Village** egyenletet kapjuk meg alapból, ami ugyebár $\hat{price}=3.9+0.22 \times area$ volt 2 tizedesjegyre.
+
+**Budapest korábbi egyenlete is szépen kijön** $\hat{price}=3.9+11.8+(0.22+0.32) \times area=15.7+0.54 \times area$ módon.
+
+Ezen kívül látni a **p-értékek**ből, hogy a **Town** egyenesek **meredeksége csak $\alpha=10\%$-on tér el a sokaságban is a Village meredekségtől, a többi szignifikancia-szinten NEM**! Ez egybevág azzal, hogy a **két településtípus regressziós egyeneseinek 95%-os konfidencia-intervalluma metszi egymást**.

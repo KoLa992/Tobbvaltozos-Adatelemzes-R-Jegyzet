@@ -1,0 +1,805 @@
+---
+title: "Leíró statisztikai eszközök R-ben"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+<style>
+body {
+text-align: justify;
+font-size: 12pt}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Dataframe beolvasása speciális csv formátumból
+
+A Moodle-n található *titanic_utasok.csv* fájl egy olyan adattábla, ami a Titanic 1043 utasáról 8 változó (oszlop) adatát tárolja:
+
+- **Osztaly**: Az utas kabinjának osztálya (I., II. vagy III. osztály)
+- **Tulelt_e**: Túlélte-e utasunk a jégheggyel való találkát? (igen/nem)
+- **Nev**: Utasunk neve
+- **Nem**: Utasunk neme (férfi/nő)
+- **Kor**: Utasunk életkora az utazáskor években
+- **Viteldij**: Utasunk által az útért fizetett díj angol fontban
+- **BeszallasHelye**: Utasunk melyik állomáson szállt fel a hajóra
+- **CsaladtagokSzama**: Hány családtaggal utazott utasunk együtt a hajón
+
+Olvassuk be az adattáblát egy R `data frame`-be!
+
+Mielőtt hozzálátunk a beolvasáshoz, nyissuk meg a fájlt egy **jegyzettömbben**! A jegyzettömbben ugyanis észrevesszük, hogy ez a fájl bizony **nem** olyan jól viselkedő *csv*, mint a *COVID_0326.csv* volt:
+
+- az oszlopok **pontos vesszővel** elválasztottak
+- a tört számok **tizedes vesszőt** használnak
+- a szöveges adatok **nincsenek** idézőjelek között
+
+Emiatt beolvasni egy külső csomag, a `readr` telepítése és R-be történő behívása után tudjuk a fájlt:
+
+```{r eval=FALSE}
+install.packages("readr")
+library(readr) # Szokásos módon ne törődjünk az esetleges Warningokkal! :)
+```
+```{r echo=FALSE}
+library(readr)
+```
+
+Ha a `readr`-t betöltöttük az R-be a `library` függvénnyel, akkor az R Studio már beépített támogatást nyújt a *csv* kiterjesztésű fájlok beolvasására.
+
+Állítsuk be a megfelelő helyre a `Working Directory`-t:
+
+```{r}
+setwd("~/Oktatás 2021221/Többváltozós adatelemzés/R jegyzet")
+```
+
+Ezek után szimplán kattintsunk balpatkánnyal a *titanic_utasok.csv* fájlra, és a felugró menüben állítsunk be mindent úgy, hogy a beolvasandó fájl fogyatékosságait (oszlop elválasztás, tizedesjel, szövegek idézőjel nélkülisége) kijavítsuk:
+
+- Delimiter: Semicolon [oszlopok elválasztása pontosvesszővel adott]
+- Locale főmenü --> Configure gomb
+  * Decimal Mark: , [tizedesjel legyen a vessző]
+  * Grouping Mark: . [ez az ezres helyiérték határoló karaktere számok esetén...alapból ez a vessző, de mivel most vessző a tizedesjel határoló karakter, így ennek jobb híján állítsuk be a pontot, hogy ne kavarodjon össze a gépállat agya]
+  * Encoding: ISO-8859-2 [mivel a szöveges adatok nincsenek idézőjelek között így elromolhat a karakterkódolás: emiatt jó, ha egy bővebb karakterkészletre állunk át a limitált UTF-8-ról, pl. az 1. órán megismert ISO-8859-2-re]
+
+A menü ezek után az alábbi kódot generálja, amit érdemes az R szkriptfájlunk elejére bemásolni:
+
+```{r}
+titanic <- read_delim("titanic_utasok.csv", 
+    delim = ";", escape_double = FALSE, locale = locale(decimal_mark = ",", 
+        grouping_mark = ".", encoding = "ISO-8859-2"), 
+    trim_ws = TRUE)
+```
+
+Ezek után nézzük meg, hogy rendben vagyunk-e az `str` függvénnyel:
+
+```{r}
+str(titanic)
+```
+
+Első ránézésre rendben vagyunk: 10 oszlopunk = változónk van a megfelelő oszlopnevekkel, mindenhol 1043 megfigyeléssel.
+
+NODE, azt is látjuk, hogy a létrejött `titanic` objektum nem `data frame`, hanem valami rejtélyes `tibble` típusú. Annyira nem érdekel minket, hogy mi a túró ez a `tibble` típus, inkább konvertáljuk `data frame`-é a dolgot, és nézzük meg újra a struktúrát:
+
+```{r}
+titanic <- as.data.frame(titanic)
+
+str(titanic)
+```
+
+Most már minden oké, a `titanic` objektum egy `data frame`. Az `str` eredmény alapján látjuk, hogy a három darab számértékű változónk (Kor Viteldij, CsaladtagokSzama) a táblában `num`, azaz `double` adattípusú. A többi változónk szöveges adat főleg nominális mérési skálán (Tulelt_e, Nev, Nem, BeszallasHelye), de van egy oridnális változónk is az Osztaly személyében. Ez az 5 változó, mivel alapvetően minőségi és nem mennyiségi adat, ennek megfelelően `character` adattípust kaptak.
+
+## 2. Helyzetmutatók R-ben
+
+A statisztika legalapetőbb három mutatója a **módusz**, **medián** és az **átlag** együttesen **helyzetmutatók** néven fut a statisztikai szaknyelvben. Ebben a fejezetben mindhárom mutató viselkedését alaposan megnézzük és jelentéstartalmukat értelmezzük. Alapvetően mindig 2 változóra nézve vizsgáljuk ezeket a mutatókat: a **Kor** és **CsaladtagokSzama** esetében, de néha más változót is bevonunk az elemzéseinkbe.
+
+### 2.1. A módusz
+
+Középiskolás ismereteink alapján könnyen rá tudjuk vágni, hogy a **módusz** egy adatsor, azaz **egy változónk legtöbbször előforduló értéke**. Azaz, a leggyakoribb érték. <br>
+Ebből kifolyólag az értékét meghatározni is leginkább a **gyakorisági táblázatból** érdemes.
+
+Nézzük meg a **CsaladtagokSzama** esetét. Itt a `table` függvénnyel lekérjük simán a gyakorisági táblát, és megnézzük melyik érték a leggyakoribb:
+
+```{r}
+table(titanic$CsaladtagokSzama)
+```
+
+Voilá: a móduszunk itt a $0$! Tehát a többség egyedül, rokonok nélkül utazott.
+
+Továbbá észrevehetünk a táblázaton még egy furcsaságot: van egy darab utasunk, aki 10 családtaggal utazik együtt. Ez úgy lehetséges, hogy ebben a `data frame`-ben tényleg csak az utasok szerepelnek és a hajó személyzete nem. De ugyanakkor az simán előfordult, hogy a személyzet hozott magával rokonokat az utazásra, mint utas, viteldíj kedvezménnyel. És voltak nagycsaládok pl. a kazánfűtők soraiban, akik elhoztak magukkal 1-1 rokont, hogy azok ne maradjanak otthon.<br>
+Meg is nézhetjük, hogy ennek az ürgének, aki 10 családtagjával eljött hajókázni sikerült-e túlélni az utat:
+
+```{r}
+titanic$Tulelt_e[titanic$CsaladtagokSzama==10]
+```
+
+Hát sajnos nem...jobban jártr volna szegénykém, ha otthon marad, és nem jön el a hajón dolgozó rokonaival a Titanicra féláron.
+
+Amúgy meg is tudjuk jeleníteni a gyakorisági tábla eredményét grafikusan, csak rá kell engedni a `plot` függvényt a `table` függvény eredményére:
+
+```{r}
+plot(table(titanic$CsaladtagokSzama))
+```
+
+Látható is így, hogy a móduszunk a legkisebb érték az adatsorban, és lényegesen többször fordul elő, mint akár a második leggyakoribb elemből az 1-ből.<br>
+Itt *nem* érdemes a `hist` függvényt alkalmazni az ábrázoláshoz, hiszen az automatikusan csoportokra (tól-ig határokra) akarja bontani az adatokat a gyakorisgok megadásához, de itt a családtagok számának kis értékkészlete miatt ennek nincs sok értelme.
+
+Lássuk mi a helyzet az utasok **életkor**ának móduszával! Itt nem lesz ilyen egyszerű a módusz meghatározása, mert az életkornak sokkal nagyobb az értékkészlete, mint a saládtagok számának, így a `table` függvény eredménye is elég terebélyes:
+
+```{r}
+table(titanic$Kor)
+```
+
+Ebből a táblából aztán nehezen lesz meg a leggyakoribb kor szemmelveréssel. Inkább használjuk a `max` függvényt! Mentsük el a `table` függvény eredményét egy R objektumba
+
+```{r}
+gyak_kor <- table(titanic$Kor)
+str(gyak_kor)
+```
+Aztán keressük meg azt az elemet az új, **gyak_kor** objektumban, ahol a gyakoriság értréke egyenlő a maximális gyakorisággal:
+
+```{r}
+gyak_kor[gyak_kor==max(gyak_kor)]
+```
+
+Így már látjuk, hogy a legtöbb utasunk, konkrétan 47 fő 24 éves. Nézzük meg az osztályközös gyakorisági táblában hol helyezkedne el ez az érték:
+
+```{r}
+library(RcmdrMisc)
+
+binnedCounts(titanic$Kor)
+```
+
+Azt láthatjuk, hogy a legtöbb utas életkora 20-25 év közötti, és a 24 év móduszunk is ebbe a kategóriába esik. Minden rendben. :)
+
+A módusz egyébként az egyetlen helyzetmutató, amely **mind a 4 mérési skála esetén alkalmazható**! Hiszen a legtöbbször előforduló értéket még a *nominális* mérési skála esetén is meg lehet adni! Pl. meg tudjuk nézni a **BeszallasHelye** móduszát:
+
+```{r}
+plot(table(titanic$BeszallasHelye))
+```
+
+Könnyen leolvasható, hogy a leggyakoribb beszállási állomás *Southampton* volt.
+
+Ezek után foglaljuk össze a **módusz tulajdonságait**:
+
+- **Minden mérési skála esetén alkalmazható**: láthattuk, hogy még a *nominális*, **BeszallasHelye** változónak is meg tudtuk adni a móduszát
+- **Nem mindig határozható meg egyértelműen**: simán előfordulhat, hogy kettő vagy még több leggyakoribb elem van!
+- **Nem informatív nagy értékkészletű változók esetén**: Ezt a **Kor** és **CsaladtagokSzama** változók esete szépen szemlélteti. A kis értékkészletű **CsaladtagokSzama** változó esetén a 0-s módusz az adatsor több, mint felét kiteszi (*587/1043*), míg a sokféle lehetséges értékből álló **Kor** változó esetén a 24 éves módusz 5%-át sem teszi ki az elemeknek (*47/1043*). Tehát *kis értékkészlet esetén a módusz "jobban uralja" az adatsort*!
+- **Nem érzékeny a kilógó értékekre**: Gondoljunk bele, ha pl. a **Kor** változó esetében egy 35-ös életkort adatrögzítési hiba miatt véletlen 3500-nak vennénk, az a 24 éves módusz értékén nem változtatna, ettől még ő maradna a leggyakoribb érték.
+
+### 2.2. A medián
+
+Középiskolás ismereteink alapján a mediánt valahogy úgy adtuk meg, hogy a *növekvő sorrendbe rendezett adatok esetén a középső elem*, és ha nincs középső elem (mert az adatok elemszáma páros), akkor a két középső elem átlaga.
+
+Na ezt a definíciót úgy lehetne pontosítani, hogy azt mondjuk: **egy változó mediánja az az érték, aminél a változó értékeinek 50%-a kisebb, másik fele pedig nagyobb**.<br>
+A definíció vizuális megjelenítése egy számegyenes segítségével az alábbi alakot öltheti, egy tetszőleges $Y$ változó $i$-edik értékét $Y_i$-vel jelölve:
+
+<center>
+![](median.png){width=60%}
+</center>
+
+Lássuk is mennyi a **CsaladtagokSzama** változó mediánja! Szerencsére erre a mutatóra már van beépített függvénye az R-nek:
+
+```{r}
+median(titanic$CsaladtagokSzama)
+```
+
+Az eredmény $0$. Tehát az utasok fele 0 vagy kevesebb, másik felük 0 vagy több családtaggal utazott együtt a hajón. Ez nem meglepő, hiszen a módusz kapcsán láttuk, hogy a leggyakoribb családtagszám, a 0 egyben a legkisebb érték is, és az adatok több, mint felét (*587/1043*) kiteszi. Ezek után már nyilvánvaló, hogy ez a $0$ érték lesz a medián is.
+
+Lássuk mi a helyzet a **Kor** változó esetében.
+
+```{r}
+median(titanic$Kor)
+```
+
+Ez alapján azt mondhatjuk, hogy a Titanic utasainak fele 28 éves vagy fiatalabb, másik felük meg 28 éves vagy idősebb volt. Ez reálisnak is hat: a Titanic 1912.ben utazott ki, akkor pedig a várható élettartam még lényegesen kisebb volt, így logikus, hogy az utasok felének a kora nem haladja meg a 28 évet.
+
+Gondoljuk végig a **medián tulajdonságait**:
+
+- **Mindig egyértelműen meghatározató**: A középső elemből nem lehet több, mint egy, ellenben a leggyakoribbal
+- **Legalább ordinális mérési skálán alkalmazható**: A számításához csak sorba kell igazából rendezni a változó értékeit. Szóval egy sorbarendezhetőséget elég megkövetelni a változónktól a számításához. Így pl. a *kabinosztály* változóra is számítható és értelmezhető lenne.
+- **Kis értékkészletű változók esetén nem informatív**: Ugyanakkor, azért nem számolnánk itt ki az **Osztaly** változóra, mert az értékkészlete nagyon kicsi, konkrétan 3 lehetséges étéke van (I., II. vagy III. osztályú utasunk kabinja). Kb. *triviális*, hogy az utasok kabinosztályának a fele II. osztályú vagy kisebb, másik felének meg II. osztályú vagy nagyobb. A kis értékkészlet miatt ebben a változóban sok más lehetősége nincs a mediánnak, mint középső elem.
+- **Nem érzékeny a kilógó értékekre**: Itt is igaz, hogy pl. a **Kor** változó esetében egy 35-ös életkort adatrögzítési hiba miatt véletlen 3500-nak vennénk, az a 28 éves medián értékén nem változtatna, ettől még ő maradna a középső elem, alias a felezőpont.
+
+A medián utolsó tulajdonságát teszteljük is le írjuk át a **Kor** változóban az első értéket 16-ról 16000-re, és nézzük meg más lesz-e a 28-as medián:
+
+```{r}
+titanic$Kor[1]
+
+titanic$Kor[1] <- 16000
+
+median(titanic$Kor)
+```
+
+Hát tényleg nem nem! :) Na akkor írjuk is vissza a dolgokat:
+
+```{r}
+titanic$Kor[1] <- 16
+```
+
+### 2.3. Az átlag
+
+Az átlag ugyebár nem más középiskolás tudásunk alapján, mint a **változó elemeinek összege osztva az adatok elemszámával**. Ez képletileg az alábbi módon néz ki, ha egy tetszőleges $Y$ változó $i$-edik értékét $Y_i$-vel jelöljük, az adatok elemszámát pedig $N$-nel: $$\bar{Y}=\frac{Y_1+Y_2+...+Y_N}{N}=\frac{\sum_{i=1}^N{Y_i}}{N}$$
+
+Az átlag számítására a `mean` névre hallgató beépített R függvény használható:
+
+```{r}
+mean(titanic$CsaladtagokSzama)
+mean(titanic$Kor)
+```
+
+Tehát egy átalgos utas kb. $0.93$ családtagjával utazott együtt a hajón és $29.8$ éves.
+
+Vesézzük ki az **átlag tulajdonságai**t is. Igazából csak kettőt kell észben tartani, de azokat nagyon:
+
+- **Csak intervallum vagy arány mérési skála esetén alkalmazható**: Mivel az elemeket összeadjuk az átalgolás során, így az összeadás műveletnek értelmezhetőnek kell lennie a változón, amit átlagolunk. Ez pedig csak az intervallum és arány mérési szintű adatokon lehetséges, ahol két érték között a távolság egyértelműen megadható. Ebből pedig az fakad, hogy pl. *osztályzatokra* és *Likert-skálán* (1-7 mennyire ért egyet egy állítással) **tilos** átlagot vizsgálni, hiszen ezek ordinális mérési skálájú adatok! Itt legfeljebb csak móduszt és mediánt van értelme nézni!
+- **Érzékeny a kilógó értékekre**: Ez is abból jön, hogy a számítás során minden elemet összeadunk. Ellenben a módusz és medián esetével, itt már *nagyon is számít* az átlag értékében, ha egy 35-ös életkort adatrögzítési hiba miatt véletlen 3500-nak vennénk.
+
+A második tulajdonságot próbáljuk is ki a mediánnál alkalmazott példán! Írjuk át a **Kor** változóban az első értéket 16-ról 16000-re, és nézzük meg más lesz-e a 29.8 éves átlagéletkor:
+
+```{r}
+titanic$Kor[1]
+
+titanic$Kor[1] <- 16000
+
+mean(titanic$Kor)
+```
+
+Hujjaj! Rögtön 45.1 évre kúszott fel az átlagéletkor egy darab hibásan rögzített adat miatt! Ejjnye! Írjuk is vissza gyorsan azt a 16-ot:
+
+```{r}
+titanic$Kor[1] <- 16
+mean(titanic$Kor)
+```
+
+Na, így már mindjárt szebb! :)
+
+### 2.4. Átlag vs Medián
+
+Láthatjuk tehát, hogy az átlag nagyon érzékeny a kilógó értékekre. Ebből is adódik, hogy pl. a **CsaladtagokSzama** változóban az átlag értéke eléggé különbözik a módusz és medián $0$-s értékétől:
+
+```{r}
+median(titanic$CsaladtagokSzama)
+mean(titanic$CsaladtagokSzama)
+```
+
+Az átlag lényegesen nagyobb a módusz-medián párosnál. Ez pedig kilógó értékre, ráadásul *felfelé* kilógó értékre (mivel az átlag felfelé tér el a másik két helyzetmutatóhoz képest) utal a változóban.<br>
+Ha pedig megnézzük a változónk *eloszlását* a gyakoriságokból készített oszlopdiagramon, akkor fel is fedezzük, hogy a korábban is észrevett 1 szem 10-es az a felfelé kilógó érték:
+
+```{r}
+plot(table(titanic$CsaladtagokSzama))
+```
+
+Ellenben, a **Kor** változó esetén a három helyzetmutató, a módusz-medián-átlag szentháromság értéke úgy nagyjából azonosan 28-29 év körül forgott.
+
+```{r}
+median(titanic$Kor)
+mean(titanic$Kor)
+```
+
+Ez pedig azért van, mert az adatok eloszlása a hisztogram alapján olyan, hogy középen van nagyon sok érték, és nincs se föl, se le nagyon eltérő érték nagyon kis gyakorisággal ehhez a 25-29 éves "keménymaghoz" képest: a kis és nagy értékek felé kis *arányosan terülnek el a gyakoriságok* a változó eloszlásában:
+
+```{r}
+hist(titanic$Kor)
+```
+
+Ha mindenki ennyire a változó értékkészletének közepén helyezkedik el, és semmilyen irányban nincsenek kilógó értékek, akkor a három helyzetmutatónk értéke kb. egybe fog esni. Ha le vagy fel **vannak kilógó értékek** a változó *eloszlásában*, akkor az **átlag a kilógó értékek irányába el fog térni a medián-módusz értékétől**! Erre a jelenségre majd visszatérünk még egy picit részletesebben, de most gondolkodjunk el még valamin.
+
+Ha belegondolunk, akkor a valóságban a **jövedelem adatok eloszlása hasonló, mint a családtagok száma a hajón: sok kisebb érték van, de előfordul 1-2 kilógóan nagy érték**. Ugyebár egy társadalomnak van egy széles réteget jellemző jövedelmi szintje, de minden nemzetnek vannak milliárdos gázszerelői, akik kevesen vannak, de a jövedelmük lényegesen nagyobb, mint a társadalom széles rétegeire jellemző jövedelmi szint.<br>
+Ebből pedig egyenesen következik, hogy a jövedelem helyzetmutatói közül az átlag lényegesen magasabb értéket fog mutatni, mint a medián! Tehát az **átlagjövedelem mindig magasabb, mint** az a jövedelem, aminél az emberek fele többet keres, azaz **a középső jövedelem**!
+
+Az egyik extrém példa a jelenségre Az USA-ból jön: Washington állam Seattle megyéjében van egy Medina nevű kisváros. A városban 2003-ban 1204 db háztartás volt. Ám a jövedelemadó megfelelően alacsony kulcsa miatt ide voltak bejelentve a következő emberkék:
+
+- Bill Gates: 46 milliárd dollár
+- Jeff Bezos: 5 milliárd dollár
+- Craig McCaw: 2 milliárd dollár
+
+Ezek után a következőképpen néz ki kisvárosunkban az átlagos háztartás vagyona *minden háztartást figyelembe véve (piros)*, a *leggazdagabb Bill Gates nélkül (zöld)* és a *3 leggazdagabb háztartás nélkül (kék)*:
+
+<center>
+![](medina.png){width=60%}
+</center>
+
+Szép kis különbségek, mi? :) Emiatt érdemesebb kilógó értékek esetén a **mediánnal mérni a változónk középértékét**, mint az átlaggal!
+
+Csak hogy legyen magyar példánk is: 2019-ben a NAV jövedelemadó bevallásai alapján a magyar *pénzügyi szektorban* a medián jövedelem havi bruttó $403412$ Ft, míg az átlagjövedelem a zsíros bankigazgatói fizuk miatt $531390$ Ft-ra rúg!
+
+Az átlag ilyen szintű érzékenységét a kilógó értékekre lehet kezelni úgynevezett **nyesett átlag** számolásával, ami az adatsor legnagyobb és legkisebb *x százalékát levágva* számol átlagot. Az R `mean` függvényében egy `trim` nevű paraméterrel lehet ezt szabályozni:
+
+```{r}
+# átlagos viteldíj
+mean(titanic$Viteldij)
+# viteldíj nyesett átlag az alsó-felső 5% levágásával
+mean(titanic$Viteldij, trim = 0.05)
+# medián viteldíj
+median(titanic$Viteldij)
+```
+
+A Titanic utasainak átlagos viteldíja kb $10$ fontot csökkent a felső+alsó 5% elhagyásával az átlagszámításból! De az utasok felének viteldíja még így is kisebb, mint 15.75 font!
+
+Nem meglepő módon a viteldíjak *hisztogramját* vizsgálva találunk szép kis felfelé kilógó értékeket a *300+ fontos* viteldíjak formájában:
+
+```{r}
+hist(titanic$Viteldij)
+```
+
+## 3. A kvantilisek
+
+A **medián definíciójának általánosításával** egy teljesen új leíró statisztikai mutatószám-csoporthoz, a **kvantilisek**hez jutunk.
+
+A medián ($Me$) ugyebár az az érték a válozóban, aminél az adatok 50%-a kisebb, 50%-a nagyobb:
+
+<center>
+![](median.png){width=60%}
+</center>
+
+Ennek mintájára simán csinálhatok olyan mutatót is, aminél az adatok 25%-a kisebb, 75%-a nagyobb. VAGY fordítva: olyan mutatóm is lehet, aminél az adatok 75%-a kisebb, 25%-a nagyobb. Előbbi mutató az **alsó kvartilis**, azaz $Q_1$, míg utóbbi a **felső kvartilis**, $Q_3$:
+
+<center>
+![](kvartilisek.png){width=60%}
+</center>
+
+Ez a két kvartilis, a **mediánnal, mint második kvartilissel** ($Q_2=Me$) kiegészíülve **négy egyenlő gyakoriságú**, azaz 25%-25%-os részre bontják a vizsgált változó adatsorát, ezért ők a **negyedelőpontok, a kvartilisek**, és így 3-an vannak!
+
+A kvartilisek mintájára sok más felosztású osztópontot is ki tudunk alakítani:
+
+- ötödölő pontok: *kvinitilsek*, 4 db van belőlük
+- tizedelő pontok: *decilisek*, 9 db van belőlük
+- századoló pontok: *percentilisek*, 99 db van belőlük
+
+Ezeket az **osztópontrendszerek**et hívjuk **együttesen kvantilis**eknek. Tehát figyelem: *minden kvartilis egy kvantilis, de nem minden kvantilis kvartilis*! :)
+
+Nézzünk pár konkrét példát. A **második kvintilis**, azaz $K_2$ az az érték, aminél a változók $\frac{2}{5}=40\%$-a kisebb, és a maradék $60\%$-uk nagyobb:
+
+<center>
+![](Kvint2.png){width=60%}
+</center>
+
+Ez egyben a **negyedik decilis**, azaz a $D_4$ érték is, hiszen úgy is mondhatom, hogy az adatok $\frac{4}{10}$-e ennél kisebb, $\frac{6}{10}$-e pedig ennél nagyobb.
+
+A **30. percentilis**, azaz $P_{30}$ pedig az az érték, aminél a változónk értékeinek $\frac{30}{100}=30\%$-a kisebb, a maradék $70\%$-a pedig nagyobb. Természetesen, ez az érték egyben a **3. decilis**, azaz $D_3$ is:
+
+<center>
+![](Dec_3.png){width=60%}
+</center>
+
+A **kvantilisek öröklik a medián összes tulajdonságát**. Azaz, legalább *ordinális* mérési skálájú változókra számíthatók, nem érzékenyek a kilógó értékekre és nem informatívak kis értékkészletű változók esetén.
+
+Ezért most R-ben csak a **Kor** és **Viteldij** változókra vizsgálunk meg pár kvantilist, mint nagy értékkészletű és arány mérési skálájú változókra.
+
+Az R-ben egy tetszőleges kvantilist a `quantile` függvénnyel lehet kiszámolni. A konkrét kvantilist az "*aláesési arányával*" lehet megadni a `probs` paraméterben:
+
+```{r}
+# Q1(Kor)
+quantile(titanic$Kor, probs = 0.25)
+# Q3(Viteldíj)
+quantile(titanic$Viteldij, probs = 0.75)
+```
+
+Tehát a Titanic utasainak negyede *fiatalabb*, mint 21 év és szintén a Titanic utasainak negyede fizetett *legalább* 35 fontot az útért (azaz *legfeljebb* 3/4-ük fizetett ennyit).
+
+Egyszerre több kvantilist ki tudunk számolni, ha a `probs` paramétert *vektorként* adjuk meg a `c()` függvénnyel:
+
+```{r}
+# Kvintilisek(Kor)
+quantile(titanic$Kor, probs = c(0.2, 0.4, 0.6, 0.8))
+# Kvintilisek(Viteldíj)
+quantile(titanic$Viteldij, probs = c(0.2, 0.4, 0.6, 0.8))
+```
+
+Tehát pl. a Titanic utasainak csak ötöde idősebb, mint 42 év (ez is a 100 évvel ezelőtti alacsony várható élettartamot tükrözi), és 40% fizetett kevesebbet az útért, mint 13 font és csak a legtehetősebb 20% fizetett többet a hajókázásért, mint 51 font.
+
+## 4. A `summary` függvény
+
+Egy `data frame` oszlopainak eddig tanult egyváltozós leíró statisztikáit R-ben nagyon könnyen le lehet kérni egyszerre a `summary` függvénnyel:
+
+```{r}
+summary(titanic)
+```
+
+Az eredményből láthatjuk, hogy van itt mindenféle földi jó mind a numerikus változónkra: kvartilisek és átlag mellett minimum, maximum is megadásra kerül.
+
+Értelmezzük az eredményeket néhány változóra!
+
+- **Kor**
+  * A legfiatalabb utas egy 0.17 éves csecsemő volt MFt-ba kerül, míg a legvénebb hajókázónk 80 éves.
+  * Az utasok fele fiatalabb, mint 28 év. Az utasok legfiatalabb 25%-a 21 évnél is fiatalabb, míg a legidősebb negyede legalább 39 éves.
+  * Az előző eredményeket akár úgy is mondhattuk volna, hogy az utasok életkorának középső 50%-a 28 és 39 év közötti korú.
+  * Az utasok átlagos kora pedig 29.8 év. Abból, hogy az átlag kb. akkora, mint a medián következtethetünk arra, hogy nincsenek kilógóan idős/fiatal utasok! Ez látszik azon is, hogy a minimum és maximum kor nem tér el nagyon az alső és felső kvartilisek értékétől.
+- **Viteldíj**
+  * A legolcsóbb viteldíj a 0 font, tehát voltak akik ingyen utaztak. Ezzel szemben a legdrágább utazás 512 fontba került.
+  * Az utasok fele kevesebbet fizetett az útért, mint 15.75 font. Az utasok legszegényebb 25%-a (ahová Leonardo DiCaprio is tartozik) legfeljebb 8 fontot, míg a leggazdagabb negyedbe tartozók (tehát Kate Winsleték) legalább 35 fontot fizettek a jégheggyel történő találkáért.
+  * Az előző eredményeket akár úgy is mondhattuk volna, hogy az utasok viteldíjának középső 50%-a kb. 16 és 35 font közötti.
+  * Az utasok átlagos viteldíja pedig 36.6 font. Abból, hogy az átlag magasabb, mint a medián duplája, következtethetünk arra, hogy kilógóan drága viteldíjak találatók az utasok sokaságában. Ezt meg is erősíti az, hogy a legnagyobb viteldíj 512 font, ami sokszorosa az adatok felső kvartilisének, a 35-nek. Tehát az utasok legtehetősebb 25%-ban is még $512-35=477$ fontnyi különbségek vannak a viteldíjban!
+  * Érdekességképpen megnézhetjük, hogy kik fizették ezt a nagy, 512-es viteldíjat az utasok közül a `titanic[titanic$Viteldij==max(titanic$Viteldij),"Nev"]` kódosrral. Ha rákeresünk az eredményül kapott nevekre megtudjuk, hogy mindenki nagyon drágán fizetett nevelőnője volt pár nemes angol családnak...érdekes, hogy a nevelőnő útjára többet kültött a családfő, mint a család útjára... :)
+- **CsaladtagokSzama**: Itt azt érdemes észrevenni, hogy $Q_1=0$, ami nem meglepő, hiszen tudtuk, hogy $Me=0$. Tehát az utasok 50%-a is 0 vagy kevsebb családtaggal utazott, és mivel a minimum családtagszám is $0$, így nyilvánvaló, hogy az alsó kvartilis (alsó 25% határa) is $0$ lesz. Ellenben $Q_3=1$, szóval az utasok negyede 1 vagy több családtaggal utazott. A maximum meg a már ismerős 10-es érték, ami itt is látszik, hogy kilógó érték, hiszen $Q_3$-nak sokszorosa.
+
+### 4.1. A `summary` függvény és a minőségi változók
+
+Észrevehetjük, hogy a `titanic` nevű `data frame`-ünk `character` adattípusú oszlopaira, azaz minőségi változóira a `summary` függvény **nem ad semmi leíró statisztikai mutatót**. Pedig egy **módusz**, mint leggyakoribb érték ott is **értelmezhető lenne!**
+
+Ennek hátterében az áll, hogy a `character` típusról azt gondolja a `summary` függvény, hogy az tényleg valami szabadszöveges adat (pl. emberek neve), és nem egy jó előre megadott, nem túl nagy számú szöveges kategóriákból álló besorolás. Pedig a lakás kerülete logikailag egy ilyen adat: a 22 kerület fixen adott előre, és minden lakás a 22 kerületből egybe kerül besorolásra!<br>
+Ahhoz, hogy rávegyük az R-t, hogy tényleg így kezelje a kerületeket, akkor `factor` típusra kell őket konvertálni:
+
+A `factor` típus úgy működik az R `data frame`-ek esetében, hogy minden szöveges kategóriához egy egész számot (`integer`) rendel, és az egyes megfigyelésekhez ezeket a számokat rendeli hozzá. Majd egy külön *szótár*ban eltárolja, hogy melyik szám melyik szöveges kategóriát jelenti. Aztán a háttérben mindig megfelelteti a kódszámot a szöveges kategóriának.<br>
+Ez azért is hasznos, mert egy `integer` típusú kódszámot kisebb helyen is lehet tárolni a RAM-ban, mint egy `character`t! Így a tömeges adattárolás a "kisebb költségű" `integer`rel történik, és a nagyobb tárolási költségű `character` csak a *szótár*ban szerepel.
+
+Nézzük meg mi történik a `summary` függvény eredményével, ha a `character` típusú változóinkat `factor`rá konvertáljuk! Vigyázzunk, a nevet ne konvertáljuk `factor`rá, mert az itt egy egyedi érték mind az 1043 emberre. Jól van az `character` adattípuson, túl nagy lenne az értékkészlet a `factor`hoz. Plusz a nevek móduszát nagyon nem is akarjuk nézegetni. :)
+
+```{r}
+titanic$Osztaly <- as.factor(titanic$Osztaly)
+titanic$Tulelt_e <- as.factor(titanic$Tulelt_e)
+titanic$Nem <- as.factor(titanic$Nem)
+titanic$BeszallasHelye <- as.factor(titanic$BeszallasHelye)
+
+summary(titanic)
+```
+
+De jó! Megkaptuk pl. az utasok kabinosztályok közti megoszlását! Tehát, a legtöbb utas (pontosan 500 fő) a III. osztályon utazott, a második legtöbb utas az I. osztályon utazott, míg a legkevsébé népes kabinosztály a II. volt, bár csak 21 fővel utaztak itt kevesebben, mint az I. osztályon.<br>
+Ezek után gyerekjáték megadni a **módusz**t a minőségi változókra!
+
+**FONTOS** dolgok a `factor`okkal kapcsolatban!
+
+Csak limitált számú szöveges kategóriákat tartalmazhatnak! Azt, hogy a `factor` típusú változónak milyen kategóriái, azaz milyen lehetséges értékei vannak, azokat a `factor` "szintjeinek" (level) hívjuk, és a `levels` függvénnyel lehet őket lekérdezni:
+
+```{r}
+levels(titanic$BeszallasHelye)
+# Figyeljük meg, hogy a számok idézőjelek között vannak!
+# Tehát szövegként érti a kerületek számát az R a háttérben, nagyon helyesen!
+```
+
+Mint ahogy a `factor` típus bevezetésénél utaltam rá, ezek a szintek előre adottak, és megváltoztatni **nem lehet** őket! Ha valamiért mégis erre szorulnánk (mert pl. megszűnik egy kerület vagy létrejön egy új), akkor a `factor` típusú változót vissza kell kódolni `character`ré, elvégezni az adatokon a módosításokat majd visszakonvertálni a változót `factor`rá!
+
+Azt is megtehetjük a `by` függvény alkalmazásával, hogy ezt az egész `summary` függvényt külön alkalmazzuk egy `logical` vagy `factor` típusú változó értékei szerint. Nézzük meg az alap leíró statisztikákat a viteldíjakról pl. külön a túlélőkre és nem túlélőkre:
+
+```{r}
+by(titanic$Viteldij, titanic$Tulelt_e, summary)
+```
+
+Láthatjuk, hogy a túlélők esetében az utasok legtöbbet fizető 25%-a legalább 63 fontot fizetett, míg a nem túlélők esetén az utasok legdrágább negyedének minimális viteldíja csak 26 és fél font. Túlélő körökben az átlag-medián eltérés is nagyobb, szóval túlélők esetén erősebb a kilógóan nagy viteldíjak hatása az átlagra. Ez nem meglepő, hiszen az 512 fontos utasok mind túlélték a hajókirándulást.<br>
+Nem lepődünk meg: DiCaprio szegény karaktere megfagyott, Kate Winslet gazdag karaktere túlélte az utat és még jó sokáig éldegélt is utána. (Persze azért van egy 263 fontot fizető halott is...nem ez volt élete befektetése :))
+
+Az egész Túlélő vs Halott megbontást a `summary` függvényben egyszerre több oszlopon is alkalmazhatjuk természetesen:
+
+```{r}
+by(titanic[,c("Viteldij", "Kor", "Nem")], titanic$Tulelt_e, summary)
+```
+
+Az eredményekből látszik, hogy a medián és az átlag kor sem nagyon eltérő pl. túlélők és halottak között, szóval a gyerekeket nem nagy hatékonysággal sikerült sajna megóvni.<br>
+Plusz megintcsak Kate Winslet és DiCaprio példájából kiindulva egyáltalán nem meglepő, hogy *arányaiban nézve* is több a férfi a halottak között, mint a túlélők között. Halottaknál $\frac{522}{522+96}=84.5\%$ a férfi arány, túlélőknél csak $\frac{135}{135+290}=31.8\%$.
+
+## 5. A szórás
+
+A Moodle-n található *Befektetes.xlsx* fájl egy olyan adattábla, ami a két befektetési alap 1235 napon keresztül mért napi aráfolyamváltozásait tárolja *euróban* 2012 és 2017 között. A két befektetési alap az alábbi:
+
+- **Climate Change** részvény befektetési alap
+- **BondMaxx** kötvény befektetési alap
+
+Töltsük be az Excel fájlt egy R `data frame`-be! Az *xlsx* kiterjesztésű Excel fájlokat a `readxl` csomag `read_excel` függvényével tudjuk R `data frame`-ben elraktározni.
+
+Telepítsük a csomagot:
+
+```{r eval=FALSE}
+install.packages("readxl")
+library(readxl) # Szokásos módon ne törődjünk az esetleges Warningokkal! :)
+```
+```{r echo=FALSE}
+library(readxl)
+```
+
+Majd használjuk a csomag `read_excel` függvényét. Amennyiben 1 db munkalap van és a beolasandó adattáblánk az *A1* cellában van, mindenféle extra paraméter nélkül, problémamentesen beolvassa gépállat az adatokat R `data frame`-be:
+
+```{r}
+befektetes <- read_excel("Befektetes.xlsx")
+
+str(befektetes)
+```
+
+Minden szupinak néz ki! Mindkét befektetési alapunkra van 1235 db megfigyelés. Az `str` függvényünk eredménye alapján pedig láthatjuk, hogy pl. a 3. megfigyelés esetén, 2012.12.04-én a részvényalapunk értéke 0.18 euróval *csökkent*, míg a kötvényalapunk értéke 0.05 euróval *nőtt*.
+
+Ha el kellene döntenünk, hogy 100 elkölthető eurót melyik befekktetési lehetőségbe fektessük be, akkor csábító az a megoldás, hogy abba a befektetésbe fektessünk be, aminek az átlagos napi árfolyamváltozása magasabb.<br>
+Számoljuk akkor ki ezeket az átlagokat:
+
+```{r}
+mean(befektetes$ClimateChange_Reszveny)
+mean(befektetes$BondMaxx_Kotveny)
+```
+
+Egy átlagos napon a részvény befeketetés +0.04 eurót hoz a konyhára, míg a kötvény befektetés +0.017 eurót termel egy átlagos nap. Ezen a ponton csábító, hogy azt mondjuk, hogy az átlagos árfolyamnyereség a részvény befektetésnél nagyobb, akkor oda szórjuk el 100 eltapsolható eurónkat.
+
+Azért a biztonság kedvéért azért nézzünk rá erre a `data frame`-re is egy `summary` függvénnyel és minimum lessük meg hogyan alakulnak a kvartilisek:
+
+```{r}
+summary(befektetes)
+```
+
+Azért a kvartilisek és a minimum-maximum viszonyából láthatjuk, hogy azért vannak kilógó értékek a változókban *mindkét* irányban! Pl. a részvénynél a napok 75%-a olyan, hogy 0.5 euró alatti az árfolyamváltozás, de előfordult 3.9 eurós árfolyamnövekedés is. A kötvénynél pedig a veszteségek legnagyobb 25%-a (tehát az árfolyamváltozások legkisebb 25%-a) 0.0055 eurónál nagyobb mínusz csak, de van -0.52 eurós veszteségünk is!
+
+Szóval, mindkét változóban vannak kilógó értékek, de mivel *mindkét* irányba előfordulnak ezek, így ezt az átlag-medián eltérésből nem detektáljuk, de a két szélső kvartilis és a minimum-maximum viszonyából azért láthatjuk, hogy egy konkrét érték az átlagtól eléggé erősen is eltérhet.<br>
+Ebből a tapasztalásból felmerül az igény egy **mutatóra, ami megméri, hogy várhatóan mennyi az eltérés a változó egy eleme és a változó átlaga között**. Ez a mutató lesz a **szórás**.
+
+A fent megfogalmazott jelentéstartalom miatt logikus lenne úgy számolni a szórást, hogy megnézzük a változó minden $Y_i$ elemének az $\bar{Y}$ átlagtól vett eltérését és ezeket az $Y_i-\bar{Y}$ eltéréseket átlagoljuk.
+
+Szóval első nekifutásnak a szórást úgy számolnánk, hogy $\frac{\sum_{i=1}^N{Y_i-\bar{Y}}}{N}$ ha az elemszám továbbra is $N$-nel jelölődik. Próbáljuk is ki ezt a képletet a részvény befektetésen:
+
+```{r}
+N <- nrow(befektetes) # a dataframe sorainak száma tehát az elemszám :)
+atlag_reszveny <- mean(befektetes$ClimateChange_Reszveny)
+sum(befektetes$ClimateChange_Reszveny - atlag_reszveny) / N
+```
+
+Kijött, hogy a szórásunk lényegében 0, egész konkrétan normálalakban $-1.15 \times 10^{-17}$. Kicsit fura, nem? :)
+
+Nos, a háttérben az van, hogy az átlagtól el lehet térni felfelé és lefelé is. Ezek az eltérő előjelű eltérések pedig szépen kioltják egymást, és az összeg a számlálóban lényegében 0 lesz.
+
+Ezt ki lehet küszöbölni kétféleképpen is:
+
+- abszolút értékkel
+- négyzetre emeléssel
+
+Mi a második utat választjuk, a négyzetre emelést. Tehát először kiszámoljuk a **szórásnégyzetet, más szóval a varianciát**: $\sigma^2 = \frac{\sum_{i=1}^N{(Y_i-\bar{Y})^2}}{N}$
+
+És ennek a gyöke lesz a szórás: $\sigma = \sqrt{\sigma^2} = \sqrt{\frac{\sum_{i=1}^N{(Y_i-\bar{Y})^2}}{N}}$
+
+Kiszámolva manuálisan a részvény és kötvény befektetésekre is:
+
+```{r}
+N <- nrow(befektetes) # a dataframe sorainak száma tehát az elemszám :)
+
+# Részvény szórás
+atlag_reszveny <- mean(befektetes$ClimateChange_Reszveny)
+sqrt(sum((befektetes$ClimateChange_Reszveny - atlag_reszveny)^2) / N)
+
+# Kötvény szórás
+atlag_kotveny <- mean(befektetes$BondMaxx_Kotveny)
+sqrt(sum((befektetes$BondMaxx_Kotveny - atlag_kotveny)^2) / N)
+```
+
+A kötvény befektetés esetén a szórást úgy kell érteni, hogy egy konkrét kereskedési napon az árfolyamváltozás várhatóan $\pm 0.06$ euróval tér el az átlagos árfolyamváltozástól. Míg részvény befektetés esetén azt láthatjuk, hogy egy konkrét kereskedési napon az árfolyamváltozás várhatóan $\pm 0.839$ euróval tér el az átlagos napi árfolyamváltozástól.<br>
+Ez alapján pedig kijelenthetjük, hogy az átlagos árfolyamváltozás körül jobban szóródnak a konkrét napi árfolyamváltozások a *részvény* befektetés esetén, mint a *kötvény* befektetés esetén. Magyarul, a **részvény befektetés kockázatosabb**.
+
+Sajnos erre az "alap" szórás képletre **nincs beépített függvény az R-ben**. Az R beépített szórás függvénye, az `sd` a szórást $\sigma = \sqrt{\frac{\sum_{i=1}^N{(Y_i-\bar{Y})^2}}{N-1}}$ képlettel számolja. Ezt le is tudjuk ellenőrizni:
+
+```{r}
+N <- nrow(befektetes) # a dataframe sorainak száma tehát az elemszám :)
+
+# Részvény szórás R függvény verzió manuálisan
+atlag_reszveny <- mean(befektetes$ClimateChange_Reszveny)
+sqrt(sum((befektetes$ClimateChange_Reszveny - atlag_reszveny)^2) / (N-1))
+
+# Részvény szórás R függvénnyel
+sd(befektetes$ClimateChange_Reszveny)
+```
+
+Jé, tényleg azonos a két számolási mód! Azt, hogy az R alapból miért így számol szórást, hogy $N-1$-gyel oszt, a következő alkalmon fogjuk megnézni.
+
+Oké, tehát a részvény befektetés kockázatosabb, de egy átlagos napon mégis ő hozza a több eurót a konyhára. Akkor most hogy döntsek? Hát az ilyen dilemmák feloldására van a **relatív szórás** nevű mutatónk, ami a **szórás és az átlag hányadosa**, azaz $\frac{\sigma}{\bar{Y}}$. Magyarul megnézi, hogy az átlagos nyereséghez képest mekkora a kockázat, azaz a *szórás hányszorosa az átlagnak*.
+
+Az értéke a két befektetésre a következő módon számolható:
+
+```{r}
+N <- nrow(befektetes) # a dataframe sorainak száma tehát az elemszám :)
+
+# Részvény relatív szórás
+atlag_reszveny <- mean(befektetes$ClimateChange_Reszveny)
+szoras_reszveny <- sqrt(sum((befektetes$ClimateChange_Reszveny - atlag_reszveny)^2) / N)
+szoras_reszveny/atlag_reszveny
+
+# Kötvény relatív szórás
+atlag_kotveny <- mean(befektetes$BondMaxx_Kotveny)
+szoras_kotveny <- sqrt(sum((befektetes$BondMaxx_Kotveny - atlag_kotveny)^2) / N)
+szoras_kotveny/atlag_kotveny
+```
+
+Az átlagos nyereséghez képest a részvény befektetés esetén $19.9$-szeres kockázatot futunk, míg a kötvény esetén csak $3.5$-szöröst. Szóval, így az átlag és a szórás információit egy számba tekintve a kötvény befektetés tűnik a tutinak: mert az átlagos nyereséghez képest lényegesen kevesebbet kockáztatunk, mint a részvény befektetés esetében.
+
+### 5.1. Az átlag optimum tulajdonsága (kiegészító anyag)
+
+Az érdeklődőknek elregélem, hogy miért négyeztre emeléssel és nem abszolút értékkel kezeljük a szórásban az átlaghoz képesti eltérő előjelű eltéréseket. Ennek a négyzetre emelés preferálásnak az oka, hogy fontos követelmény a szórással szemben, hogy **deriválható** legyen. Erre azért van szükség, mert így meg tudjuk találni, hogy **mi az az $A$-val jelölt statisztikai mutató, amivel a változó minden értékét helyettesítve minimális szórást kapunk**. Az abszolút érték függvény pedig nem deriválható, ezért vetettük el.
+
+De akkor lássuk mire is jó az, hogy a szórást tudjuk deriválni. Ugyebár a deriválás segítségével meg tudom találni egy $f(x)$ függvény minimumát/maximumát úgy, hogy a függvény deriváltját egyenlővé teszem 0-val és kifejezem az egyenletből, hogy ez milyen $x$ értékre teljesül.<br>
+Pl. Onnan tudom, hogy a $f(x)=x^2-x$ függvény a lehető legkisebb értékét az $x=\frac{1}{2}$ helyen veszi fel, mert az $f'(x)=2x-1=0$ egyenlet megoldása az $x=\frac{1}{2}$.
+
+Na alkalmazzuk ezt az elvet a szórásra! Kersem azt az $A$ statisztikai mutatót, amire a szórásnégyzet, alias variancia számlálója a lehető legkisebb. Ugye az $N$-es osztás nem zavar a dologban, mert az adatok elemszáma mindig adott. Szóval a következő függvény esetében keresem, hogy milyen $A$ érték mellett veszi fel a minimumát: $f(A)=\sum_{i=1}^N{(Y_i-A)^2}$
+
+A függvény deriváltját a [láncszabály](https://hu.wikipedia.org/wiki/L%C3%A1ncszab%C3%A1ly) segítségével kapom meg a legkönnyebben: $$f'(A)=\sum_{i=1}^N{2 \times (Y_i-A) \times(-1)}=-2\sum_{i=1}^N{(Y_i-A)}=-2(\sum_{i=1}^N{Y_i} - \sum_{i=1}^N{A})$$
+
+Ezen a ponton kihasználhatom, hogy ha az $A$ számot $N$-szer összeadom az valójában $N \times A$, azaz: $$\sum_{i=1}^N{A}=N \times A$$.
+
+Ezzel a következő egyenletet kell megoldanom: $$f'(A)=0 \rightarrow -2(\sum_{i=1}^N{Y_i} - N \times A) = 0$$.
+
+Osztok $-2$-vel és átviszem a jobboldalra $N \times A$-t:
+$$\sum_{i=1}^N{Y_i} = N \times A$$
+
+Végül osztok $N$-nel: $$A=\frac{\sum_{i=1}^N{Y_i}}{N}=\bar{Y}$$.
+
+**Tehát az átlag az az $A$ statisztikai mutató, aminek értékével ha a változó minden $Y_i$ értékét helyettesítem, akkor minimális szórást kapok.** Ezért szeretjük tehát az átlagot, ezért van ott a helye a helyzetmutatók között a módusz és medián mentén: mert az *átlag használata eredményezi a lehető legkisebb szórást* :)
+
+## 6. Az eloszlások alakja
+
+Olvassuk be egy R `data frame`-be a Moodle-n található *Erettsegi_2018.xlsx* fájlt. Az Excel táblában a 2018. évi május-júniusi középszintű érettségi eredmények láthatók matematika, magyar és történelem tárgyakból.
+
+```{r}
+Erettsegi <- read_excel("Erettsegi_2018.xlsx")
+str(Erettsegi)
+```
+
+Látható, hogy a beolvasott táblában az érettségi eredmények, konkrétan az érettségi pontszámok az egyes tárgyakból külön oszlopokban vannak eltárolva.
+
+Vizsgáljuk meg az egyes tárgyak érettségi pontszámainak gyakoriságait **hisztogram**on:
+
+```{r}
+hist(Erettsegi$Matematika)
+hist(Erettsegi$Magyar)
+hist(Erettsegi$Tortenelem)
+```
+
+A hiszogramok alapján a következő megállapításokat tehetjük tantárgyanként:
+
+- **Matek**: Az alacsony pontszámokból van sok, és a nagy pontszámokból egyre kevesebb fordul elő. A hisztogramot elnézve az igazán nagy, 100 körüli pontszámok már kimondottan ritkaságszámba mennek. Tehát már-már azt mondhatjuk, hogy *fefelé kilógó értékei vannak ennek a változónak*. Az ilyen alakú hisztogrammal bíró változót hívjuk **jobbra elnyúló eloszlású változó**nak.
+- **Magyar**: A magasabb pontszámokból van sok, és a kisebb pontokból egyre kevesebb fordul elő. A hisztogram alapján az igazán kicsi, olyan 20-30 alatti pontszámok egészen ritkának mondható. Már-már azt mondhatjuk, hogy *lefelé kilógó értékei vannak ennek a változónak*. Az ilyen alakú hisztogrammal bíró változót hívjuk **balra elnyúló eloszlású változó**nak.
+- **Történelem**: A pontszámok nagyjából a változó értékkészletének közepén helyezkednek el, és a kimondottan kis és nagy pontszámok felé haladva kb. arányosan "fogy el" a gyakoriság. Kimondottan a gyakoriságok maximumától (tehát a módusztól) *kilógóan távoli adat egyik irányban sem nagyon van*. Az ilyen alakú hisztogrammal bíró változót hívjuk **szimmetrikus vagy normális eloszlású változó**nak.
+
+A **normális eloszlású** változóknak központi szerepe van a statisztikában, mivel ilyenkor a **változó értékei véletlen hatások összegződésével állnak elő**. Azaz, az értékeknek nincs torzítása az értékkészlet egyik irányában sem: nem a kimondottan kicsi vagy nagy értékekből van sok, hanem az értékkészlet közepén fordul elő a legtöbb adatpont. Ezt a jelenséget mondja ki kicsit matematizáltabban a [centrális határeloszlás-tétel](https://hu.wikipedia.org/wiki/Centr%C3%A1lis_hat%C3%A1reloszl%C3%A1s-t%C3%A9tel), rövidítve *CHT*.
+
+A változó eloszlásának alakja hatással van a három helyzetmutatónk (az átlag = $\bar{Y}$, módusz = $Mo$, medián = $Me$ szentháromság) egymáshoz képesti viszonyára is az alábbi ábrán látható módon:
+
+<center>
+![](ferde.jpg){width=70%}
+</center>
+
+Mint láthatjuk, hogy a *három helyzetmutató viszonya attól függ hol vannak a kilógó értékek az eloszlásban*: a jobbra elnyúlónál felül, így a kilógó értékekre érzékeny átlag magasabb, mint a másik két helyzetmutató; balra elnyúlás esetén pedig az átlag a legkisebb érték a három közül, mert a kilógó értékek lefelé találhatók az eloszlásban.
+
+Ellenőrizzük le ezt a tulajdonságot mindhárom változóban.
+
+Vegyük először a **jobbra elnyúló eloszlású matek** eredményeket. A `median` és `mean` függvényben használnunk kell a `na.rm = TRUE` beállítást, mivel nem ugyan annyian érettségiztek magyarból, matekból és töriből, így lehetnek hiányzó értékek az egyes változókban, és ezeket nem kell figyelembe venni a medián és az átlag számolásnál:
+
+```{r}
+# Módusz
+gyak_matek <- table(Erettsegi$Matematika)
+gyak_matek[gyak_matek==max(gyak_matek)]
+# Medián
+median(Erettsegi$Matematika, na.rm = TRUE)
+# Átlag
+mean(Erettsegi$Matematika, na.rm = TRUE)
+```
+
+Tényleg $Mo < Me < \bar{Y}$, azaz $26<48<51.7$ a sorrend. :)
+
+Lássuk a **balra elnyúló magyar** pontokat:
+
+```{r}
+# Módusz
+gyak_magyar<- table(Erettsegi$Magyar)
+gyak_magyar[gyak_magyar==max(gyak_magyar)]
+# Medián
+median(Erettsegi$Magyar, na.rm = TRUE)
+# Átlag
+mean(Erettsegi$Magyar, na.rm = TRUE)
+```
+
+Itt is nagyjából stimmel a sorrend ($Mo > Me > \bar{Y}$), bár a medián és az átlag inkább egyenlőnek vehető: $80>62 \approx 62.6$. Ez annyit jelent, hogy a lefelé kilógó értékek hatása nem olyan jelentős, hogy az átlagot nagyon megmozgassa a mediánhoz képest, de az szépen látszik, hogy a leggyakoribb eredmény, a 80 pont az lényegesen magasabb, mint az átlag (és medián) értéke.
+
+Végül pedig akkor lessük meg mi a helyzet a **szimmetrikus töri** eredményekkel:
+
+```{r}
+# Módusz
+gyak_tori<- table(Erettsegi$Tortenelem)
+gyak_tori[gyak_tori==max(gyak_tori)]
+# Medián
+median(Erettsegi$Tortenelem, na.rm = TRUE)
+# Átlag
+mean(Erettsegi$Tortenelem, na.rm = TRUE)
+```
+
+Ez alapján elmondható, hogy mindhárom helyzetmutató kb. $58$ körüli, szóval megközelítőleg azonosnak tekinthetők.
+
+Az eloszlások alakjának eltérését meg szokták mérni a kitüntetett helyzetben lévő **normális eloszlás**tól. Egyrészt megmérik az eloszlás ferdeségét (aszimmetriáját) a normális eloszláshoz képest, tehát azt, hogy mennyire jobbra/balra elnyúló. Ennek az eszköze az $\alpha_3$ mutató, amit a következőképpen lehet értelmezni:
+
+- $-0.1 ≤ \alpha_3 ≤ + 0.1$ --> az eloszlás szimmetrikus
+- $\alpha_3 > + 0.1$ --> az eloszlás jobbra elnyúló
+- $-0,1 > \alpha_3$ --> az eloszlás balra elnyúló
+
+Tehát kb. azt mondhatjuk nagy vonalakban, hogy ha a mutató kb. 0, akkor szimmetrikus az eloszlás, ha pozitív akkor jobbra elnyúló, ha negatív, akkor balra elnyúló.
+
+Ehhez képest lehet mérni az eloszlás csúcsosságát/lapultságát is a normális eloszláshoz képest, mivel még ha az eloszlás szimmetrikus is, akkor is lehet hogy a módusz, mint legnagyobb gyakoriságú elem (tehát a hisztogram maximuma) köré jobban/kevésbé csoportosulnak a konkrét értékek:
+
+<center>
+![](csucsos.png){width=40%}
+</center>
+
+A csúcsosság jelenségét az $\alpha_4$ csúcsossági mutatóval mérjük, aminek az értelmezését a következó módon lehet megtenni az $\alpha_3$-hoz hasonló módon:
+
+- $-0.1 ≤ \alpha_4 ≤ + 0.1$ --> az eloszlás normális csúcsosságú
+- $\alpha_4 > + 0.1$ --> az eloszlás a normális eloszlásnál csúcsosabb
+- $-0,1 > \alpha_4$ --> az eloszlás baa normális eloszlásnál lapultabb
+
+Tehát kb. azt mondhatjuk nagy vonalakban, hogy ha a mutató kb. 0, akkor normális csúcsosságú az eloszlás, ha pozitív akkor a normálisnál csúcsosabb, ha negatív, akkor a normálisnál lapultabb.
+
+Az $\alpha_3$ és $\alpha_4$ mutatókat R-ben, sok más alap leíró statisztikai mutatóval együtt a `psych` csomag `describe` függvényével lehet kiszámolni.
+
+Telepítsük és hivatkozzuk be az R-be a csomagot:
+
+```{r eval=FALSE}
+install.packages("psych")
+library(psych) # Szokásos módon ne törődjünk az esetleges Warningokkal! :)
+```
+```{r echo=FALSE}
+library(psych)
+```
+
+Majd alkalmazzuk a `describe` függvényt az **Erettsegi** `data frame`-n:
+
+```{r}
+describe(Erettsegi)
+```
+
+Mint láthatjuk, a függvény nagyon sok hasznos statisztikai mutatót ad vissza az eddig tanultak közül a `data frame` mindhárom változójára:
+
+- **n**: Az elemszáma a változónak. Mint látjuk, ez itt nem egységes, hiszen nem azonos számú érettségiző volt a három tárgyból. A hiányzó értékeket tehát nem számolta bele a változó elemszámába.
+- **mean**: átlag értéke
+- **sd**: A szórás értéke (itt is az $N-1$-gyel osztós verziót számolja)
+- **median**: A medián értéke
+- **trimmed**: A nyesett átlag értéke úgy, hogy a változó értékeinek alsó és felső 10%-át kihagyja az átlagszámolás során.
+- **mad**: Mean Absolut Deviation --> a szórás abszolútértékkel (és nem négyzet + gyökvonással) számolt értéke.
+- **min**, **max** és **range**: A változó értékeinek minimuma és maximuma, valamint ezek különbsége, mint a változó teljes terjedelme: *range = max - min*
+- **skew**: Az $\alpha_3$ mutató értéke
+- **kurtosis**: Az $\alpha_4$ mutató értéke
+- **se**: Az átlag standard hibája (standard error) --> egyelőre nem foglalkozunk vele, következő anyagban tanulunk róla.
+
+A mostani fejezetünk szempontjából az az érdekes, hogy a **kurtosis**, azaz $\alpha_4$ mutató értéke mindhárom változóra kisebb, mint $-0.1$, így mindhárom változó eloszlása lapultnak tekinthető, tehát a módusz körül a normálisnál jobban szóródnak az értékek. De a legkevésbé lapult eloszlása a töri pontszámoknak van.<br>
+Ezen kívül látjuk, hogy a magyar pontok eloszlása balra elnyúló, mivel $\alpha_3$ itt kisebb, mint $-0.1$. A matek pontszámok a jobbra elnyúlásnak megfelelően $\alpha_3=0.33>0.1$-et mutatnak, míg a szimmetrikus töri pontok $0.03$-as $\alpha_3$ értéke a várakozásoknak megfelelően $\pm 0.1$ közötti érték.
+
+De ilyen dolgokat is meg lehet állapítani a `describe` eredményéből, hogy a legbizonytalanabb eredményeket a matematika pontszámok adják, mert az ő $\frac{22.28}{51.77}=0.43$-as relatív szórásuk a legnagyobb. Tehát, bár a matek pontszámok átlag és medián szinten is a legkisebbek, de itt van a legnagyobb szóródás is, az átlag $43\%$-os környezetében helyezkednek el a konkrét tanulók matek pontszámai. Ehhez képest a másik két tárgy pontjainak relatív szórása csak $\frac{19.95}{62.63}=0.318=31.8\%$ és $\frac{19.17}{57.01}=0.336=33.6\%$.
+
+### 6.1. A `describe` függvény és a `factor` adattípus
+
+Nézzük meg hogyan reagál a `describe` függvény arra, ha ráeresztjük a teljes **titanic** `data frame`-re, amiben vannak minőségi változók (név, nem, túlélt-e, stb.) is:
+
+```{r}
+describe(titanic)
+```
+
+Azt vegyük észre az eredményen, hogy a nem `double` típusú változóinkra (egy `character` és a négy `factor`) nem mutat ki semmi értelmes dolgot a változók eloszlásairól. Emiatt is kaptunk az érintett minőségi változók nevéhez egy *csillagot*!!<br>
+Ilyen szempontból a `summary` függvény intelligensebb jószág. Ez a `describe` alapvetően a **numerikus változók** alaposabb leíró statisztikai elemzésére alkalmas.
+
+## 7. A doboz ábra
+
+Miután annyit beszélgettünk arról, hogyan hatnak a különböző irányú kilógó értékek egy változóban a különböző statisztikai mutatóinkra, főleg az átlagra, jó lenne egy **eszköz**t nézni, **amivel ezek a kilógó értékek azonosíthatók egy változóban**.<br>
+Nos, ez az eszköz lesz a **doboz ábra**.
+
+A doboz ábrán gyakorlatilag a `summary` függvény eredménye jelenik meg, mivel az ábrán látható a változó **mediánja** valamint **alsó és felső kvartilise**. Egy általános doboz ábra az alábbi alakot ölti R-ben:
+
+<center>
+![](Doboz.png){width=60%}
+</center>
+
+A doboz ábrán tehát a "**doboz**" nem más, mint az alsó és felső kvartilis által közrezárt tartomány, azaz a **változó értékeinek középső 50%-a**. Más szóval az **interkvartilis terjedelem**, alias $IKT=Q_3-Q_1$.
+
+A 3 db kvartilisen kívül a doboz ábra a **Tukey-féle kerítések** segítségével jelzi az adatsor kilógó értékeit. A Tukey-féle kerítések alapján egy *változó azon értékei minősülnek kilógónak, amelyek a változó középső 50%-hoz*, tehát az IKT-hez *képest túl messze helyezkednek el* (akár felfelé, akár lefelé). Konkrétan a két irányba így számolhatók ezek a kerítések: $Felso=Q_3+1.5 \times (Q_3-Q_1)$ és $Also=Q_1-1.5 \times (Q_3-Q_1)$. Ha a változónk egy $Y_i$ értéke kisebb, mint az $Also$ kerítés, akkor lefelé számít kilógó értéknek, míg ha az $Y_i$ érték nagyobb, mint a $Felso$ kerítés, akkor felfelé számít kilógó értéknek.<br>
+A doboz ábra pedig úgy működik, hogy ha **van valamelyik kerítésen túllógó érték**, akkor azokat már, **mint kilógó értékeket, külön-külön pontként jeleníti meg**, míg ha **valamelyik kerítésen nincs túllógó érték**, akkor a doboz ábra a **változó minimumát vagy maximumát mutatja az ábrán** az iránynak (felső/alsó kerítés) megfelelően.
+
+Mindezen megfontolások alapján könnyen látható már talán, hogy a **fenti minta doboz ábra egy jobbra elnyúló eloszláshoz** tartozik: Az adatok középső 50%-a (a doboz) az adatok minimumához közelebb van, mint a maximumához, és felfelé találhatók pontok, azaz kilógó értékek.<br>
+Egy **balra elnyúló eloszlás doboz ábrája pont a fordítottja lenne a fentinek**: Az adatok középső 50%-a (a doboz) az adatok maximumához közelebb lenne, mint a minimumához, és lefelé lennének találhatók pontok, azaz kilógó értékek:
+
+```{r echo=FALSE}
+boxplot(log(Erettsegi$Tortenelem[Erettsegi$Tortenelem>0]))
+```
+
+**Szimmetrikus esetben** pedig a doboz ábrán a **doboz középen helyezkedne el**, se aminimumhoz, se a maximumhoz nem lenne kimondottan közel, és **vagy mindkét irányban vagy egyik irányban sem lennének pontok, azaz kilógó értékek**. Egy példa ábra szimmetrikus esetben az alábbi:
+
+```{r echo=FALSE}
+boxplot(Erettsegi$Tortenelem)
+```
+
+Egy doboz ábrát az R-ben a `boxplot` függvénnyel tudunk generálni. Próbáljuk is ki a **titanic** `data frame` **Viteldij** változóján, és nézzük meg a változóra ráeresztett `summary` függvény eredményét is :
+
+```{r}
+boxplot(titanic$Viteldij)
+summary(titanic$Viteldij)
+```
+
+Látható a doboz ábrán, hogy a viteldíjak eloszlása jobbra elnyúló: a középső 50% (a doboz) az ingyenes minimális viteldíjhoz van közelebb, és a $Q_3+1.5 \times (Q_3-Q_1)=35.08+1.5 \times (35.08-8.05)=75.625$-ös felső kerítés érték felett vannak kilógó értékek (tehát a kerítés alapján a 76.6 font feletti viteldíjak már kilógóan nagyok), míg a $Q_1-1.5 \times (Q_3-Q_1)=8.05-1.5 \times (35.08-8.05)=-32.495$-ös értékű alsó kerítés alatt nem, hiszen minimumunk a $0$.
+
+Egyébként, ez a **Tukey-féle kerítéses kilógó érték keresési eljárás elég aggresszív**. Ha a doboz ábrát alaposan megnézzük, akkor inkább csak azt a pár 200 font feletti viteldíjat kéne kilógóan magas díjaknak venni, de ezek sincsenek annyira vészesen elszakadva a "keménymagtól", azaz a középső 50%-tól. Az *igazi-igazi kilógó értékek az 500 font feletti viteldíjak*. Szóval a **kilógó értékek határánál nem kell minden áron ragaszkodni a doboz ábra kerítéses módszeréhez**, a doboz ábra tényleges alakja és a józan ész kombinációjával felülírhatók a kerítésekből származó kilógó érték határok. :)

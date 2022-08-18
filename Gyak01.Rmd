@@ -1,0 +1,780 @@
+---
+title: "R Bevezetés"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+<style>
+body {
+text-align: justify;
+font-size: 12pt}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Mi az R?
+
+Az R szakterület-specifikus programozási nyelv és fejlesztőkörnyezet, elsősorban statisztikai számításokhoz és ábrázolásokhoz használatos.
+2020 szeptemberében a 9. legnépszerűbb programozási nyelv volt a [TIOBE index](https://www.tiobe.com/tiobe-index/) szerint. Az R kiemelkedően jól teljesít adattárolási és számítási téren, kiemelkedően az alábbi területeken:
+
+* Mátrixműveletek, tömbök kezelése
+* A külső könyvtárak segítségével hatalmas tudástárhoz és eszközkészlethez jutunk az R közvetítésével
+* Adatábrázolási lehetőségek
+* Minden szükséges funkcionalitást biztosító interpretált programnyelv
+
+A legfrisebb R verzió az [R 4.1.1](https://cran.r-project.org/), ami ingyenesen letölthető.
+Szintén ingyenesen letölthető az [R Studio](https://rstudio.com/products/rstudio/download/) fejlesztőkörnyezet, ami megkönnyítvi a programkódok írását R nyelven. Például automatikus kódkiegészítést tartalmaz. Az órákon ezt a környezetet fogjuk használni.
+
+**Az R és az R studio nem összekeverendő egymással, az R Studio integrált fejlesztőkörnyezetet biztosít az R, mint programnyelv számára!**
+
+## 2. Programozási alapelvek
+
+Mivel az R egy programnyelv, így elengedhetetlen, hogy a használata előtt némi programozási alapvetésekkel tisztában legyünk.
+
+Mint talán más tárgyban volt is szó róla, a mai számítógépek alapvetően a Neumann-elvek szerint működnek.
+
+A mi szempontunkból ez csak annyit jelent, hogy a számítógépet alapvetően *utasítások* végrehajtására használjuk programozás során: pl. számold ki ezt, vagy rajzold ki amazt. A programozás kihívása, hogy a gépállat felfogása nagyon nehéz, ezért az utasításokat nagyon konkrétan meg kell neki fogalmazni. Ehhez a megfogalmazáshoz adnak segítséget a különböző programnyelvek, így az R is.
+
+A Neumann-elvek szerint a programnyelven kiadott utasításokat a számítógépben a *processzor* (Central Processing Unit, CPU) hajtja végre. Ugyanakkor az utasítások végrehajtásához a gépnek adatokat is fejben kellhet tartania (mondjuk átlag számítás során nem állt tudnia milyen számok átlagát számoljuk ki). Ezeket az adatokat nem meglepő módon a *memóriájában* (Random Access Memory, RAM) tárolja a gép.
+A gépállattal való kommunikációhoz szükségvan valami beviteli = input eszközre (billentyűzet, egér) és az utasítások eredményének megjelenítéséhez kell egy kimieneti = output eszköz (monitor) is.
+
+És...ennyi! Alapvetően a modern számítógépek ennyi alkotóelemből állnak (a háttértár programozás szempontjából irreleváns).
+Mindez egy cuki ábrán (a processzor belső felépítése minket jelenleg nem érdekel):
+
+<center>
+![](neumann.png){width=50%}
+</center>
+
+Számítógép vásárlás szempontjából is alapvetően a CPU és a RAM határozza meg mennyire gyors a gép: minél nagyobb a CPU órajele (GHz) és minél több magja van, annál több utasítást tud végrehajtani a gép egy adott idő alatt, és minél nagyobb a RAM mérete (GB) annál több adatot tud egyszerre fejben tartani.
+Talán nem ér minket meglepetésként, ha azt mondom, hogy a *statisztikai számítások alapvetően RAM igényesek* (mert sok adattal dolgoznak). 16-32 GB már kell, hogy komolyabb statisztikai modelleket gyorsan tudjunk futtatni egy valós vállalati adattáblán (ami általában több, mint 1 millió rekroddal és minimum 30-40 oszloppal = változóval rendelkezik).
+
+## 3. Az R Studio felülete
+
+Amikor feltelepítettük az alap R-t és az R Studio-t a gépünkre, akkor az R Studio-t indítsuk el.
+Indítás után az alábbihoz hasonló képernyőkép fogad minket:
+
+<center>
+![](RStudio.jpg){width=100%}
+</center>
+
+Az R kódokat R Studio-ban *.R* kiterjesztésű szkriptfájokban fogjuk írni.
+Egy ilyet az alább látható módon lehet létrehozni:
+
+<center>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/nQCdg5RrO6Y" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</center>
+
+A szkriptfájlba írhatjuk a gépállatnak szóló utasításainkat R nyelven. Az utasítások végrehajtását a szkript fájl jobb felső sarkában lakó **Run** gomb megtaposásával tudjuk kérni a géptől, aki az utasítás eredményét alul, a *Console* felületen köpi ki. Alapesetben az R mindig azt az utasítást hajtja végre a **Run** gomb megnyomásakor, amiben éppen a villogó kurzorral álltunk.
+Egy példában számoltassuk ki az R-rel, hogy mennyi 3+2:
+
+<center>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/_H6THore3Ms" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</center>
+
+Több utasítást is végre tudunk hajtatni a géppel egyszerre. Csak jelöljük ki a szkriptben a végrehajtandó utasításokat, és így kijelölés után tapossuk meg a **Run** gombot!
+Egy utasítást több sorba is írhatunk, de egy új utasítás mindig új sorban kezdődjön! Érdemes egy üres sort is hagyni az előző utasítás vége után!
+
+Számoltassunk akkor most ki az R-rel egyszerre két dolgot is: mennyi 3+2 és mennyi 3*2:
+
+<center>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/G0jXgZ0MYmE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</center>
+
+Ezek után a jegyezetek további részében a feladatok elvégzéséhez szükséges R kódrészleteket és azok eredményét az alábbi módon jelölöm:
+
+```{r}
+3+2
+
+3*2
+```
+
+## 4. Working Directory
+
+Mielőtt belevágunk az R mélyebb rejtelmeibe van még egy fontos dolog, amiről még szót kell ejteni: a *Working Directory* kérdéséről.
+A *Working Directory* az a mappa, amibe az R minden *.R* kiterjesztésű szkriptfájlunkat alapértelmezetten menteni akarja.
+Továbbá, alapértelmezés szerint minden fájlt innen akar a memóriába tölteni.
+Az R Studio jobb alsó sarkában lévő részen lehet kiválasztani és beállítani, hogy melyik mappa legyen a *Working Directory*. Ezek után minden fájlunk alapból ide fog mentődni, és minden adattáblát ide rakjunk be, amivel majd az R-ben dolgozni akarunk!
+A *Working Directory* beállításához az R Studio jobb alsó sarokában lévő résznél található **...** gombot megnyomva kereshetünk mappát. Miután a mappaválasztás megvan, akkor ugyan ennél a résznél található **More --> Set As Working Directory** gombot nyomjuk még le a balpatkánnyal.
+Ez a műveletsor az alábbi R kódot generálja (nyilván mindenkinél más lesz az idézőjelek közti útvonal):
+
+```{r}
+setwd("C:/Users/lacko/Desktop")
+```
+
+Ezt a fenti utasítást érdemes az aktuális szkriptfájl elejére bemásolni, és utána az R Studio indításakor mindig ennek az utasításnak a megfuttatásával kezdeni a munkát, hogy az R a megfelelő helyen keresse a fájlainkat.
+Természetesen, a fenti utasítás idézőjelek közti részének átírásával és lefuttatásával is beállítható a *Working Directory*.
+
+Az R Studio jobb alsó sarkában található résznél automatikusan el is navigálhatunk az aktuális *Working Directory*-ba a **More --> Go To Working Directory** gomb segítségével.
+
+Az egész *Working Directory*-val kapcsolatos okfejtés működésben megnézhető a következő videón:
+
+<center>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/kyyMY1RpQXY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</center>
+
+Ha és amennyiben a *.R* kiterjesztésű szkriptfájlunk mentése során a gépállat rákérdez, hogy milyen karakterkódolással (*Character Encoding*) szeretnénk azt menteni, akkor az **ISO-8859-2** szabványt válasszuk, mert az tuti jól kezeli a magyar érkezeteket is:
+
+<center>
+![](Encoding.jpg){width=50%}
+</center>
+
+## 5. Alapvető R adattípusok és adatszerkezetek
+
+Eddig az R-re csak utasításokat hajtattunk végre, de a memóriában (RAM-ban) nem tároltattunk el még vele semmit.<br>
+Most itt az idő! Az utasítások eredményét a `<-` szimbólummal tudjuk a memóriába valamilyen szimpatikus néven elmenteni.
+
+### 5.1. Egyszerű adattípusok
+
+Mentsük el a 3+2 eredményét egy `osszeg` névre hallgató R objektumba: `osszeg <- 3+2`. Az utasítás végrehajtásának hatására az `osszeg` objektum megjelenik az R Studio *jobb felső* sarkában lévő résznél (az R nyelve és lokalizációja angol, így ne akarjunk ékezetes objektumneveket adni!). Az R Studio képernyőnek ezen részén látjuk mindig azt, hogy éppen milyen objektumok élnek a RAM-ban:
+
+<center>
+![](Env.jpg){width=60%}
+</center>
+
+Az R memória-objektumoknak több fajtája van. A legegyszerűbbek azok, amik csak egy értéket tartalmaznak (mint nekünk az előbb az `osszeg`). Ezeket szokás néha *változó*nak is hívni. Én nem szeretem ezt az elnevezést, mert keverhető a statisztikai értelemben vett változóval, ami mindig egy statisztikai megfigyelést leíró tulajdonságot jelent (pl. munkavállaló jövdeleme).
+
+Az R objektumoknak mindig van adattípusa is, ami leírja, hogy az adott objektumban számértékű, szöveges, dátum vagy valami egyéb jellegű adatot tárolunk-e. Ez azért marha fontos, mert az adattípustól függ, hogy mennyi hely szükséges a RAM-ban az objektum tárolásához. Érzésre megmondható talán, hogy egy szöveges adat tárolására több hely kell, mint egy egész szám tárolásához.
+
+Az adattípusokat az `str` és a `typeof` beépített R függvényekkel lehet lekérdezni.
+
+Ezen a ponton érdemes megemlékezni arról, hogy az R-ben léteznek függvényként működő beépített utasítások is. Ezek az úgynevezett R függvények olyan utasítások, amik a matekban megszokott $f(x)$ függvény alakot veszik fel.
+A függvény neve leírja, hogy a függvény milyen műveletet végeztet el a gépállattal, és a zárójelek között pedig megadjuk, hogy milyen bemeneti paramétereken (adatokon) kell elvégezni a kijelölt műveletet. Pl. ilyen függvény volt már a `setwd` is.
+
+Gyakorlati példaként lássuk akkor R függvényekre az `str` és a `typeof` működését:
+
+```{r}
+osszeg <- 3+2
+
+str(osszeg)
+
+typeof(osszeg)
+```
+
+Az eredmény alapján láthatjuk, hogy az `str` csak annyit árul el nekünk, hogy az objektumunk szám típusú cucc, de a `typeof` már azt is megmondja, hogy ez egy `double` típusú szám. A `double` típusú szám az olyan, hogy tud akár tört számot is tárolni.
+
+Az `str` az objektum adattípusa mellett azt is eredményül adja, hogy mi az objektum aktuális értéke (a fenti példában ezért van ott az `5`).
+
+Létezik egy `integer` nevű adattípus is, ami csak egész számokat tud tárolni. A kódban ilyenkor a szám után kell írni egy **L** betűt:
+
+```{r}
+egesz <- 3L
+
+str(egesz)
+
+typeof(egesz)
+```
+
+A mi tárgyunkban ennek nem igazán lesz jelentősége, de ha igazi *big data*-val foglalkozik az ember, akkor a RAM takarékosság miatt számít ez a különbség is!
+
+Néhány egyéb fontosabb adattípus és megadási módjuk:
+
+```{r}
+szoveges <- "HelloThere" # Figyeljünk rá, hogy szöveget a kódban csak idézőjelek közé rakjunk! Mint pl. Excelben! :)
+
+str(szoveges)
+typeof(szoveges)
+
+igazhamis <- TRUE
+
+str(igazhamis)
+typeof(igazhamis) # a logical típusnak csak két értéke lehet: TRUE vagy FALSE
+```
+
+A fenti kódrészletben szereplő **#** jel a komment jele az R-ben. A **#** mögötti részeket a gépállat nem fogja végrehajtani, olyan lesz neki, mintha ott sem lenne. Ezzel magunknak írhatunk az R szkriptbe hasznos megjegyzéseket.
+
+Az egyes adattípusok között tudunk konvertálni, ha van ennek van értelme. A konverzóra függvényeket tudunk használni, amik neve kivétel nélkül **as** kulcsszóval kezdődik.
+
+Pl. számból tudunk szöveget csinálni:
+
+```{r}
+szam <- 1992
+
+typeof(szam)
+
+szoveg <- as.character(szam)
+
+typeof(szoveg)
+```
+
+Olyan szövegből tudunk számot csinálni, aminek tartalma tényleg egy valid szám:
+
+```{r}
+szoveg <- "1992"
+
+typeof(szoveg)
+
+szam <- as.numeric(szoveg)
+
+typeof(szam)
+```
+
+Tizedestörtekkel vigyázzunk! Az **R angol lokalizációt feltételez mindig**, így tizedes pontot kell alkalmazni! A tizedes vesszővel írt számot nem fogja felismerni, és hisztis hibaüzenetet dob. :( A `nemjo` változó értéke pedig üres, azaz R nyelvén `NA` lesz:
+
+```{r}
+nemjo <- as.numeric("3,14")
+
+nemjo
+
+typeof(nemjo)
+
+jo <- as.numeric("3.14")
+
+jo
+
+typeof(szam)
+```
+
+### 5.2. Összetett adatszerkezetek
+
+#### Vektorok
+
+Egyszerre több értéket tartalmazó objektumot is fel tudunk venni az R memóriájába a `c` függvénnyel. Ennek az objektumnak a neve **vektor**:
+
+
+```{r}
+sokszam <- c(3.14, 2.67, 88, 1234)
+
+str(sokszam)
+typeof(sokszam)
+```
+
+Vegyük észre, hogy mindkét függvény azt mondja, hogy az új objektumunk szám, illetve double típusú. Ez amiatt van, mert a **vektor objektum csak egyféle adattípusból származó értékek sorozatát képes tárolni**!
+
+Amennyiben eltérő adattípusú adatokat szeretnénk vektorban tárolni, akkor az R mindent átkonvertál a legáltalánosabb adattípusra, ami a szöveg (`character`):
+
+```{r}
+sokszam_sokszoveg <- c(88, 42, "Hello", 1992, 9, "There", "Friend", 11)
+
+str(sokszam_sokszoveg)
+typeof(sokszam_sokszoveg)
+```
+
+Ezek után nézzük meg hogyan lehet különböző műveleteket végezni a vektorokkal!
+
+Kérjük le, hogy egy vektor hány elemet tartalmaz:
+
+```{r}
+sokszam <- c(3.14, 2.67, 88, 1234, 42.5)
+
+length(sokszam)
+```
+
+Kérjük le a 3. elemet:
+
+```{r}
+sokszam[3]
+```
+
+Kérjünk le minden elemet 2-től 4-ig:
+
+```{r}
+sokszam[2:4]
+```
+
+Kérjük le a 2. és 4. elemeket! Figyeljük meg, hogy ekkor a hivatkozást is vektorként adjuk meg:
+
+```{r}
+sokszam[c(2,4)]
+```
+
+Válasszunk ki minden elemet, csak a 3-at ne:
+
+```{r}
+sokszam[-3]
+```
+
+A hecc kedvéért nézzük meg mit ad vissza gépállat, ha nem létező elemet kérünk le:
+
+```{r}
+sokszam[6]
+```
+Üres értéket (`NA`)!
+
+Rendezzük sorba a számokat tartalmazó vektor elemeit:
+
+```{r}
+order(sokszam)
+sokszam[order(sokszam)]
+```
+
+Rendezzük sorba a számokat tartalmazó vektor elemeit csökkenő sorrendbe és mentsük el az eredményt egy új objektumba:
+
+```{r}
+rendezett <- sokszam[order(sokszam, decreasing = TRUE)]
+rendezett
+```
+
+Figyeljük meg, hogy a sorbarendezést megvalósító `order` függvénynek elérhető egy második paramétere, ami a sorbarendezés irányát adja meg. Azt, hogy egy függvénynek mennyi és milyen paraméterei vannak, az legegyszerűbben az [R nyelv online dokumentációjából](https://www.rdocumentation.org/) lehet kideríteni, ahol a függvény nevére kell rákeresni.
+
+Szép szóval azt szokás mondani, hogy a dokumentáció megadja, hogy az egyes R függvényeket milyen milyen paraméterezéssel lehet *meghívni*.
+
+A dokumentáció használata során nagyon figyeljünk arra, hogy az R egy **case-sensitive** nyelv!! Ez azt jelenti, hogy az utosításokban és függvények nevében számít a kis-nagy betű!! Tehát, az `order` függvény **nem** ugyan az, mint az `Order` függvény!!
+
+#### Listák
+
+Különböző típusú objektumokból álló sorozat tárolására alkalmas a **lista** (`list`) objektum:
+
+```{r}
+sokszam_sokszoveg <- c(88, 42, "Hello", 1992, 9, "There", "Friend", 11)
+sokszam <- c(3.14, 2.67, 88, 1234, 42.5)
+igazhamis <- TRUE
+koszontes <- "Halika"
+
+
+feketelista <- list(sokszam_sokszoveg, sokszam, igazhamis, koszontes)
+
+str(feketelista) # a függvény megmutatja a lista elemeit is $ jelekkel felsorolva
+typeof(feketelista) # ez csak simán visszaadja, hogy az objektum lista típusú
+```
+
+A lista elemeinek száma továbbra is lekérhető a `length` függvénnyel.
+
+Azonban, ha a lista egy elemét akarjuk kiszedni, akkor trükközni kell. Ugyanis a vektoroknál használatos módszer nem működik:
+
+```{r}
+feketelista[2]
+
+typeof(feketelista[2])
+```
+A `feketelista[2]` objektum még mindig egy lista, **nem pedig egy számokat tartalmazó vektor**!
+
+Ha tényleg a `sokszam` objektumot akarjuk kiszedni a listából, akkor ezt kell csinálni:
+
+```{r}
+feketelista[[2]]
+
+typeof(feketelista[[2]]) # ez itt már tényleg egy szám típusú vektor, ahogy kell
+```
+
+Ha ez marha körülményesnek tűnik, akkor azt is csinálhatom, hogy úgy hozom létre a listát, hogy az egyes elemeinek külön neveket adok:
+
+```{r}
+sokszam_sokszoveg <- c(88, 42, "Hello", 1992, 9, "There", "Friend", 11)
+sokszam <- c(3.14, 2.67, 88, 1234, 42.5)
+igazhamis <- TRUE
+koszontes <- "Halika"
+
+
+feketelista <- list(egyeske = sokszam_sokszoveg, ketteske = sokszam,
+                    harmaska = igazhamis, negyeske = koszontes)
+
+str(feketelista)
+```
+
+Ez az elnevezősdi a lista elemeivel azért jó, mert ahogy a fenti `str` függvény eredménye is sugallja, a lista elemeit nem csak sorszámukkal, hanem nevükkel is ki lehet szedni a "fő" lista objektumból. Nem meglepő módon a dollárjel segítségével.
+
+Szedjük akkor ki a második elemet a `feketelista` objektumból, aminek ugye a neve az, hogy `ketteske`:
+
+```{r}
+feketelista$ketteske
+
+typeof(feketelista$ketteske)
+```
+
+Az eredmény, várakozásainknak megfelelően egy szám (konkrétan `double`) típusú vektor, 5 elemmel.
+
+Mielőtt tovább robogunk, töröljük ki a memóriából az eddig létrehozott R objetumokat! Ezt legegyszerűbben R Studio-ban a jobb felső sarokban lévő részen található **seprű** gomb megtaposásával lehet elérni:
+
+<center>
+![](Broom.jpg){width=60%}
+</center>
+
+
+## 6. Adattáblák kezelése R-ben
+
+R-be a legkönnyebben talán **csv** kiterjesztésű állományként tárolt adattáblákat lehet beolvasni a `read.csv` függvény segítségével. A **csv** állományok valójában olyan **txt** fájlok, amikben egy táblázat szerepel úgy, hogy az oszlophatárokat **vesszők** jelzik! Innen is a név: *comma separated values = csv*
+
+**FIGYELEM!** A függvény az alábbi struktúrát várja el a beolvasandó **csv** fájlban lévő táblázattól:
+
+- az oszlopok vesszővel elválasztottak
+- a tört számok tizedes pontot használnak
+- a szöveges adatok idézőjelek között vannak
+
+Ha angol nyelvű oldalról töltünk le adatokat *csv*-ben (pl. [Kaggle](https://www.kaggle.com/)), akkor a fenti követelményeknek szinte biztosan meg fognak felelni.
+
+A beolvasandó adattáblától az R elvárja azt a logikai felépítést, hogy a tábla soraiban legyenek a statisztikai megfigyelési egységeink (emberek, országok, lakások, autók stb.) és az oszlopokban pedig a megfigyeléseket leíró tulajdonságok, azaz változók/ismérvek (ember kora, ország GDP-je, autó márkája stb.).
+
+A Moodle-n található *COVID_0326.csv* fájl megfelel a fenti követelményeknek, és a Föld 100 országára, mint megfigyelési egységekre nézve tartalmazza az alábbi 9 változó adatait:
+
+- Country: ország neve
+- Pop: ország népessége (fő)
+- PopDens: népsűrűség (fő/km2)
+- Prop_UrbanPop: Városi népesség aránya 2019-ben (%)
+- PressLiberty: Sajtószabadsági index 2019-ben (alacsonyabb = szabadabb sajtó)
+- PerCapita_HealthExp_2016: Egy főre jutó eüg-i kiadások, vásárlóerő-paritáson számolva (2016)
+- COVID19_CasesPerMillion: Egymillió főre jutó COVID-19 fertőzöttek száma 2020.03.26-án
+- ConstitutionalForm: államforma
+- HeadOfState: államfő jogkörei (hatalmat gyakorol vagy csak reprezentatív szerepkörű)
+
+Mint láthatjuk a változók leírásából, a Country, ConstitutionalForm és HeadOfState változók mérési skálája *nominális*, a többi változóké pedig *arány*.
+
+Olvassuk akkor be az R memóriájába ezt a táblát a a `read.csv` függvénnyel egy `COVID` nevű objektumba:
+
+```{r}
+COVID <- read.csv("COVID_0326.csv")
+# ez csak akkor működik, ha a fájl a korábban kijelölt Working Directory-ban lakik!!
+```
+
+Ha minden oké, akkor látjuk, hogy mejelent a memóriában egy `COVID` nevű adattábla, ami 100 megfigyelési egységet (*observations*-t = obs.) tartalmaz 9 változóról (*variables*), ahogy kell:
+
+<center>
+![](df.jpg){width=60%}
+</center>
+
+Nézzük meg milyen struktúrában is tárolta le az R ezt a `COVID` objektumot a RAM-ban:
+
+```{r}
+typeof(COVID)
+str(COVID)
+```
+
+A `typeof` szerint ő egy lista, de az `str` szerint ez egy `data frame`, bár a dollárjelek miatt nagyon hasonló az eredmény, mintha tényleg egy listára eresztettük volna rá a `str` függvényt.
+
+Nos, a válasz az, hogy **a `data frame` típusú objektum**, amiben az R az adattáblákat tárolja **egy azonos hosszúságú vektorokból álló lista**! Tehát a lista egy eleme az valójában a tábla egy oszlopa. Ez látszik a dollárjelek utáni nevekből is.
+
+### 6.1. A data frame objektumon végezhető alapműveletek
+
+Nézzük meg milyen alapműveleteket tudunk végezni a `data frame` objektumokon!
+
+Bele tudunk nézni az első néhány sorába (alapjáraton az első 6-ba):
+
+```{r}
+head(COVID) # alapértemezésben az első 6 sort mutatja
+
+head(COVID, n=3) # ez már csak az első 3 sort írja ki
+```
+
+Le tudjuk kérni a kódból a tábla a sorainak és oszlopainak a számát:
+
+```{r}
+ncol(COVID)
+
+nrow(COVID)
+```
+
+Ki tudjuk választani 42. sor 7. oszlopát igen sokféleképpen:
+
+```{r}
+COVID[42,7] # ez kicsit mátrixműveletes logika: [sor,oszlop] hivatkozás
+
+COVID[42,"COVID19_CasesPerMillion"] # az oszlopot szám helyett a nevével is lehet hivatkozni
+
+COVID$COVID19_CasesPerMillion[42] # itt eleve azt mondom, hogy kiszedjük a COVID19_CasesPerMillion nevű oszlopot (vagyis listaelemet) a listából a $ jellel, és annak nézzük meg a 42. elemét 
+```
+
+Ki tudjuk választani az egész 42. sort:
+
+```{r}
+COVID[42,] # ilyenkor az oszlop hivatkozást hagyjuk simán üresen, de a vesszőt még írjuk be!
+```
+
+Vagy az egész 7. oszlopot:
+
+```{r}
+COVID[,7] # ilyenkor a sor hivatkozást hagyjuk simán üresen, de a vesszőt még írjuk be!
+
+COVID[,"COVID19_CasesPerMillion"]
+
+COVID$COVID19_CasesPerMillion
+```
+
+Több sort és oszlopot is ki tudunk választani, ha a [] közti hivatkozásokba vektorokat rakunk:
+
+```{r}
+COVID[c(1,50,60,80),c(1,4,7)]
+
+COVID[c(1,50,60,80),c("Country","Prop_UrbanPop","COVID19_CasesPerMillion")]
+
+COVID[20:30,c("Country","Prop_UrbanPop","COVID19_CasesPerMillion")] # Ha a kiválasztandó sorok követik egymást, akkor így is lehet
+
+COVID[20:30,1:4] # Ha a kiválasztandó oszlopok követik egymást, akkor így is lehet
+
+```
+
+Ami a legszebb ebben az egészben, hogy a **kiválasztandó sorokat logikai feltételekkel is ki tudjuk jelölni**. Magyarul tudjuk **szűrni** az adattáblát!
+
+### 6.2. Pár példa data frame objektumban végzett szűrésre
+
+Adjuk meg azon országok neveit, ahol 100 felett volt 2020.03.26-án az egymillió főre jutó COVID esetszám:
+
+```{r}
+COVID[COVID$COVID19_CasesPerMillion > 100, c("Country", "COVID19_CasesPerMillion")]
+```
+
+Adjuk meg azon országok neveit, ahol 100 felett volt 2020.03.26-án az egymillió főre jutó COVID esetszám, **és** a városi népesség aránya legfeljebb 60%:
+
+```{r}
+COVID[COVID$COVID19_CasesPerMillion > 100 & COVID$Prop_UrbanPop <= 60,
+      c("Country", "Prop_UrbanPop", "COVID19_CasesPerMillion")]
+```
+
+Adjuk meg azon országok neveit, ahol az államforma abszolút monarchia, **vagy** a városi népesség aránya 35% alatti:
+
+```{r}
+# először megnézzük, hogy milyen lehetséges értékei vannak a ConstitutionalForm változónak a unique függvénnyel
+
+unique(COVID$ConstitutionalForm)
+
+# a unique függvény eredményéből látjuk, hogy az abszolút monarchiák "Absolute monarchy" néven futnak a táblában
+
+COVID[COVID$ConstitutionalForm == "Absolute monarchy" | COVID$Prop_UrbanPop < 35,
+      c("Country", "Prop_UrbanPop", "ConstitutionalForm")]
+```
+
+Adjuk meg Belgium, Magyarország és Horvátország népsűrűségét és 2020.03.26-i COVID esetszámait:
+
+```{r}
+COVID[COVID$Country %in% c("Belgium", "Hungary", "Croatia"),
+      c("Country", "PopDens", "COVID19_CasesPerMillion")]
+```
+
+Adjuk meg azon országok nevét, államformáját és 2020.03.26-i COVID esetszámait, amik **nem** köztársaságok! Az eredményt mentsük el egy új, `NemKozt` nevű `data frame`-be, és az eredménynek csak az első 6 sorát jelenítsük meg:
+
+```{r}
+NemKozt <- COVID[COVID$ConstitutionalForm != "Republic",
+      c("Country", "ConstitutionalForm", "COVID19_CasesPerMillion")]
+# Figyeljük meg, hogy a "!=" a "nem egyenlő" jele
+
+head(NemKozt)
+```
+
+Adjuk meg azon országok nevét, amiknek az államformája **nem** köztársaság és **nem** is abszolút monarchia:
+
+```{r}
+COVID[!(COVID$ConstitutionalForm %in% c("Absolute monarchy", "Republic")),
+      c("Country", "ConstitutionalForm")]
+# Figyeljük meg, hogy a "!" általánosan a "tagadás" jele
+```
+
+Persze, hogy ha bevetjük a `unique` függvényt, akkor gyorsan rájövünk, hogy ezek egyszerűen az alkotmányos monarchiák, de most a *tagadás* jelét (szép szóval opratátorát) akartam megmutatni. :)
+
+```{r}
+unique(COVID$ConstitutionalForm)
+
+KeresettAllamforma <- unique(COVID$ConstitutionalForm)[2]
+
+COVID[COVID$ConstitutionalForm == KeresettAllamforma,
+      c("Country", "ConstitutionalForm")] # csak, hogy lássuk: így is lehet :)
+```
+
+A fenti szűrések R kódja alapján remélhetőleg érződik már, hogy milyen kódokkal lehet logikai műveleteket kijelölni az R utasításokban:
+
+```{r, echo=FALSE}
+
+x <- data.frame("Kód" = c("<", ">", "==", "!=","<=", ">=", "&", "|", "%in%", "!"),
+                "Jelentés" = c("Kisebb","Nagyobb", "Egyenlő", "Nem Egyenlő","Legfeljebb", "Legalább",
+                               "ÉS", "VAGY", "TARTALMAZ", "TAGADÁS"))
+
+knitr::kable(
+  x, align = "cc"
+)
+```
+
+Még két érdekes dolog a `data frame`-k kapcsán.
+
+Először is, oszlopokat át lehet nevezni a `colnames` függvény segítségével, ami egy vektorba szedi ki az oszlopneveket:
+
+```{r}
+colnames(COVID) # megnézzük az oszlopneveket
+
+# majd a Country oszlopot (ami az 1. oszlop) átnevezzük "Orszag"-ra
+colnames(COVID)[1] <- "Orszag"
+
+# meglessük az eredményt
+colnames(COVID)
+```
+
+Másodszor, a létező oszlopokból ki lehet számolni újakat. Pl. adjuk meg az országok területét hektárban (1 km2 = 100 ha)!
+
+```{r}
+COVID$Area <- (COVID$Pop / COVID$PopDens) * 100 # emlékezzünk: a népsűrűség fő/km2-ben volt megadva!
+
+head(COVID[,c("Orszag", "Area")])
+```
+
+Egyébként ez általánosságban igaz a *vektor*okra R-ben: egyszerűen, a normális műveleti jelek és R függvények segítségével végezhetünk rajtuk matematikai műveleteket.
+
+Adjunk meg két számítértékű vektort:
+
+```{r}
+egyik <- c(1,2,3,4)
+
+masik <- c(6,7,8,9)
+```
+
+Adjuk össze és szorozzuk a két vektor elemeit páronként, sorban:
+
+```{r}
+egyik + masik
+
+egyik * masik
+```
+
+Emeljük négyzetre a `masik` vektor elemeit:
+
+```{r}
+masik^2
+```
+
+Vegyük a két vektor szorzatösszegét az *összeg*, azaz `sum` R függvény alkalmazásával:
+
+```{r}
+sum(egyik * masik)
+```
+
+Vegyük az `egyik` vektor elemeinek átlagát a `mean` R függvény alkalmazásával:
+
+```{r}
+mean(egyik)
+```
+
+## 7. Külső csomagok telepítése és behivatkozása
+
+Ahogyan a bevezetőben is írtam, az R egyik legvonzóbb tulajdonsága, hogy külső könyvtárak, csomagok (`library`-k) segítségével rengeteg extra függvényhez férhetünk hozzá, amik nincsenek benne az alap (base) R verzióban.
+
+A következő feladathoz majd egy `RcmdrMisc` névre hallgató külső csomagból lesz szükségünk egy függvényre.
+
+A 2. alkalommal pedig szükségünk lesz az alábbi csomagokra:
+
+- readr
+- psych
+- ggplot2
+
+Telepítsük őket! Ha a felugorna egy ablak, ahol országot kéne választanunk, akkor bátran válasszuk *Hungary*-t! :) Ha valamilyen oknál fogva ezzel baja lenne az R-nek, akkor *Austrira* tuti szokott működni.
+
+```{r eval=FALSE}
+install.packages("RcmdrMisc")
+install.packages("readr")
+install.packages("psych")
+install.packages("ggplot2")
+```
+
+Ha csomag telepítés során az R pirossal WARNING-okat dob vissza, azokat nyugodtan figyelmen kívül lehet hagyni. A piros szín ijesztő lehet, de amíg az üzenet elején nem szerepel az *Error* szó, csak a WARNING, addig nincs gáz! :)
+
+Ahhoz, hogy tudjuk használni is a telepített csomagok függvényeit, be kell őket hívni az R-be a `library` paranccsal. Most hívjuk be az R-be a `RcmdrMisc` csomagot:
+
+```{r}
+library(RcmdrMisc)
+```
+
+A piros üzenetekkel, ha nem *Error*okat írnak, továbbra sem kell törődni.
+
+Csomagot lehet telepíteni az R Studio jobb alsó sarkában lévő résznél található gombok segítségével is [bocsi, a videóban kicsit bénázok a *psych* szó gépelésével :)]:
+
+<center>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/vZ7x5ogDA-8" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</center>
+
+## 8. Gyakoriság, Osztályközök, Relatív gyakoriság, Kumulált gyakoriság, Hisztogram
+
+A legegyszerűbb statisztikai eszköz, amivel egy statisztikai ismérvben/változóban lévő információtartalomról tömörített képet kaphatunk az a gyakorisági táblázat.<br>
+Ez ahogy a neve is mutatja, nem csinál semmi mást, csak kilistázza a változó összes lehetséges értékét és megadja, hogy melyik érték hányszor fordul elő a vizsgált `data frame`-ben, azaz megadja a változó értékeinek *gyakoriságát*. Ez egy olyan egyszerű művelet, ami mérési skálától függetlenül alkalmazható, értelemszerűen darabszámokat nominális mérési skálájú változókra is meg tudunk határozni.
+
+Vegyük például a nominális mérési skálájú, államforma, **ConstitutionalForm** változót. A változó értékeinek gyakoriságát a `table` függvénnyel tudjuk meghatározni.
+
+```{r}
+table(COVID$ConstitutionalForm)
+```
+
+Láthatjuk, hogy a legtöbb ország (79 db) köztársaság, míg abszolút monarchiából csak 3 van a vizsgált adatsorunkban. Tehát a vizsgált országainknak jelentős része, majdnem 79/100=4/5 része olybá tűnik, hogy köztársaságként működik, és a monarchia (még az alkotmányos is) már ritkaságnak számít manapság.
+
+Most nézzük meg az egymilliófőre jutó COVID esetszám gyakoriságait is ugyan ezzel a függvénnyel.
+
+```{r}
+table(COVID$COVID19_CasesPerMillion)
+```
+
+Ajjajj! Na, itt nem úgy néz ki, hogy megvalósult volna a statisztikai eszközök legfontosabb célja: a változóban lévő információ tömör megjelenítése. Ebből a fenti eredménytáblázatból sok hasznos következtetést nem tudunk levonni, mivel *minden esetszám egyszer fordul elő*. Ez igazából annak a következménye, hogy az egymillió főre jutó COVID esetszámnak, mint numerikus változónak az *értékkészlete nagy*.
+
+A nagy értékkészletű numerikus változókat úgy tudjuk kezelni, és használhatóvá alakítani a gyakorisági táblát, hogy az esetszámokat *tól-ig* kategóriákba, szakszóval **osztályközökbe** soroljuk, és ezeknek a kategóriáknak vizsgáljuk a gyakoriságait. Hiszen feltehetően pl. 50-100 közötti egymillió főre jutó esetszámmal már nem csak egyetlen ország bír.
+
+Mielőtt belevágunk, gondoljuk végig, hogy milyen elven kellene kialakítani ezeket a *tól-ig* kategóriákat, hogy jól értelmezhető módon mutasság meg a numerikus változónk **gyakorsiági eloszlásának** alakulását:
+
+- A kilalakított *kategóriáknak = osztályközöknek* **egyenlő hosszúnak** kell lenniük. Hiszen, ha az egyik kategória nagyobb értéktartományt fed le, mint a többi, akkor abba a kategóriába értelemszerűen több elem fog beleesni, és ott nagyobb lesz a kimutatott gyakoriság.
+- Az azonos hosszú kategóriák/osztályközök számának elég kicsinek kell lennie, hogy a gyakorisági tábla ne nőjön túl nagyra, és átlátható legyen, de elég nagynak is kell lennie ahhoz, hogy a gyakorisági tábla megfelelő mennyiségű információt közvetítsen a változóról. Értelemszerűen 2 db kategória létrehozása nem fedi fel a változó gyakoriságainak részletes viszonyait, és túl sok információt veszít.
+
+Az R `RcmdrMisc` csomagjának `binnedCounts` függvénye mindezek szellemében egyenlő osztályközök mellett készíti el a gyakorisági táblát, és második pontban szereplő követelményt a **Négyzetgyökszabály** alkalmazásával teljesíti. A szabály szerint egy változó gyakorisági táblájához kialakítandó osztályközök száma ($k$) az adatok elemszámától ($N$-től) függ, egyszerűen $k=\sqrt{N}$ módon.
+
+Próbáljuk is ki a függvényt a **COVID19_CasesPerMillion** változón:
+
+```{r}
+binnedCounts(COVID$COVID19_CasesPerMillion)
+```
+
+Láthatjuk, hogy a függvény az esetszámok változóhoz $11$ kategóriát hozott létre, és a lépésköz (alsó-felső határ távolsága) egy kategóriában $50$. Ez azért van így, mert az R arra is törekszik, hogy a kategóriák lépésköze egy szebb, egész szám legyen. Ha tartanénk magunkat a $k=\sqrt{100}=10$-hoz, akkor egy lépésköznek $\frac{max-min}{k}$ módon kellene számolódnia, ami esetünk ben egy csúnya, $53.553$ értéknek adódna.
+
+```{r}
+(max(COVID$COVID19_CasesPerMillion)-min(COVID$COVID19_CasesPerMillion))/10
+```
+
+Emiatt az R függvényünk inkább kikerekíti a lépésköz hosszát 50-re, és *bevállal** egy 11. osztályközt.
+
+Ha és amennyiben nem tetszik nekünk a Négyzetgyökszabályból adódó $k$, bármikor felülírhatjuk a `binnedCounts` függvény `breaks` paraméterén keresztül. Pl. ha mindenáron csak 6 osztályközt szeretnénk:
+
+```{r}
+binnedCounts(COVID$COVID19_CasesPerMillion, breaks = 6)
+```
+
+De térjünk is vissza az eredeti verzióra:
+
+```{r}
+binnedCounts(COVID$COVID19_CasesPerMillion)
+```
+
+Az eredmények alapján elmondhatjuk, hogy a 100-ból 63 országban az egymillió főre jutó COVID esetszám 50 alatti volt 2020.03.26-án. 4 országban volt az esetszám 300-350 eset/millió fő között. A **Percent** oszlopban láthatjuk, hogy a teljes elemszám hány százalékát teszi ki az adott sor/kategória gyakorisága. Ez az oszlop a **relatív gyakoriság**ok oszlopa. Most ez egyezik a *"nyers" gyakoriságok*at mutató **Count** oszlop értékeivel, mivel a teljes elemszám a **COVID** táblázatban $N=100$, és hát pl. $\frac{14}{100}=0.14=14\%$. :)
+
+Ha a gyakorisági táblázatot `data frame`-é konvertálva elmentjük a memóriába, akkor bővíthetjuk a táblázatot egy úgynevezett **kumulált gyakoriság** oszloppal is az R `cumsum` függvénye segítségével.
+
+```{r}
+# gyakorisági tábla mentése data frame-ként
+gyak_tabla <- as.data.frame(binnedCounts(COVID$COVID19_CasesPerMillion))
+
+# oszlopnév "szépítése"
+colnames(gyak_tabla) <- "Gyakorisag"
+
+# kumulált gyakoriságok számítása új oszlopba
+gyak_tabla$Kumulalt_Gyak <- cumsum(gyak_tabla$Gyakorisag)
+
+# eredmény megtekintése
+gyak_tabla
+```
+
+Voilá! Amit az új, **Kumulalt_Gyak** oszlop megmutat az az *adott kategória felső határa alatt lévő elemek száma/gyakorisága*.<br>
+Tehát, ha pl. a 3. sort nézem, akkor azt mondhatom 8 országban van az egymillió főre jutó COVID esetszám 100-150 eset/millió fő között, de 85 db országban van az esetszám 150 eset/millió fő **alatt**. Nyilván ezt a kumulálás műveletet hasonlóan el lehet játszani a relatív gyakoriságokra is, csak először azokat külön bele kell rakni még a **gyak_tabla** nevű `data frame`-be:
+
+```{r}
+# gyakorisági tábla bővítése relatív gyakoriságokkal
+gyak_tabla$Rel_Gyak <- gyak_tabla$Gyakorisag / sum(gyak_tabla$Gyakorisag)
+
+
+# kumulált relatív gyakoriságok számítása új oszlopba
+gyak_tabla$Kumulalt_Rel_Gyak <- cumsum(gyak_tabla$Rel_Gyak)
+
+# eredmény megtekintése
+gyak_tabla
+```
+
+Tehát, a bővített tábla alapján azt mondhatjuk, hogy az országok 8%-ában van az egymillió főre jutó COVID esetszám 100-150 eset/millió fő között, de az országok 85%-ban van az esetszám 150 eset/millió fő alatt.
+
+**Fontos tulajsonság**a a kumulált oszlopoknak, hogy a gyakorisági tábla utolsó sorában a sima kumulált gyakoriságnak mindig a *teljes elemszámmal* kell egyeznie, míg a kumulált relatív gykoriságnak mindig *100%-ra* kell az utolsó sorban kijönnie. Hiszen minden egyes adat kisebb vagy egyenlő, mint a változó maximális értéke!
+
+A gyakorisági tábla egy grafikus megjelenítési eszköze a **hisztogram**, ami az R `hist` függvényével lekérhető egy `data frame` tetszőleges numerikus oszlopára:
+
+```{r}
+hist(COVID$COVID19_CasesPerMillion)
+```
+
+Látható, hogy a hisztogram egy oszlopdiagram, aminek az *x* tengelyén a gyakorisági tábla osztályközei találhatók, míg az *y* tengelyen az oszlopméretek a gyakoriságokat jelölik.<br>
+A diagramról még jobban észrevehető, ami a gyakorisági táblából is leolvasható: a legtöbb ország COVID esetszáma egymillió főre elég kicsi érték, de ritka előfordulási gyakoriságokkal vannak egészen extrém nagy (pl. 400-500 eset/millió fő körüli) esetszámokkal bíró országok is.
+
+A `hist` függvény a `binnedCounts` függvényhez hasonlóan alakítja ki automatikusan a kategóriákat. Itt is a `breaks` paraméter segítségével tudjuk felülírni a Négyzetgyökszabályból adódó kategóriaszámot, ha szeretnénk:
+
+```{r}
+hist(COVID$COVID19_CasesPerMillion, breaks = 6)
+```
+
+A hisztogram alakjának főbb tendenciái (sok kis érték, egyre inkább kevés nagy érték) megamaradnak, csak a diagram kevésbé részletes a csökkentett kategóriaszám ($k$) miatt.
