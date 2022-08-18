@@ -1,0 +1,26 @@
+---
+title: |
+  <center>
+  ![](title_page.png){width=40%}<br> 
+  <br>Többváltozós Adatelemzési Modellek R Jegyzet<br>
+  Budapesti Corvinus Egyetem<br>
+  Üzleti adatelemző szakirányú továbbképzés
+  </center> 
+output: html_document
+date: '2022.08.18.'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. téma: <a href="Statisztikai Alapfogalmak.pdf" target="_blank">Statisztikai Alapfogalmak</a>
+
+## 2. téma: <a href="Gyak01.html" target="_blank">R Bevezetés</a>
+
+## 3. téma: <a href="Gyak02.html" target="_blank">Leíró statisztikai eszközök R-ben</a>
+
+## 4. téma: <a href="Gyak03.html" target="_blank">Intervallumbecslés és Hipotézisvizsgálat</a>
+
+## 5. téma: <a href="Gyak04.html" target="_blank">Statisztikai Kapcsolatvizsgálatok</a>
+
