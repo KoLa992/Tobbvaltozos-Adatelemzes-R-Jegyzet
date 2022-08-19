@@ -18,15 +18,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## 1. Mi az R?
 
-Az R szakterület-specifikus programozási nyelv és fejlesztőkörnyezet, elsősorban statisztikai számításokhoz és ábrázolásokhoz használatos.
-2020 szeptemberében a 9. legnépszerűbb programozási nyelv volt a [TIOBE index](https://www.tiobe.com/tiobe-index/) szerint. Az R kiemelkedően jól teljesít adattárolási és számítási téren, kiemelkedően az alábbi területeken:
+Az R szakterület-specifikus programozási nyelv és fejlesztőkörnyezet, elsősorban statisztikai számításokhoz és ábrázolásokhoz használatos. Az R kiemelkedően jól teljesít adattárolási és számítási téren, kiemelkedően az alábbi területeken:
 
 * Mátrixműveletek, tömbök kezelése
 * A külső könyvtárak segítségével hatalmas tudástárhoz és eszközkészlethez jutunk az R közvetítésével
 * Adatábrázolási lehetőségek
 * Minden szükséges funkcionalitást biztosító interpretált programnyelv
 
-A legfrisebb R verzió az [R 4.1.1](https://cran.r-project.org/), ami ingyenesen letölthető.
+A legfrisebb R verzió az [R 4.2.1](https://cran.r-project.org/), ami ingyenesen letölthető.
 Szintén ingyenesen letölthető az [R Studio](https://rstudio.com/products/rstudio/download/) fejlesztőkörnyezet, ami megkönnyítvi a programkódok írását R nyelven. Például automatikus kódkiegészítést tartalmaz. Az órákon ezt a környezetet fogjuk használni.
 
 **Az R és az R studio nem összekeverendő egymással, az R Studio integrált fejlesztőkörnyezetet biztosít az R, mint programnyelv számára!**
@@ -65,14 +64,14 @@ Az R kódokat R Studio-ban *.R* kiterjesztésű szkriptfájokban fogjuk írni.
 Egy ilyet az alább látható módon lehet létrehozni:
 
 <center>
-<iframe width="560" height="315" src="https://www.youtube.com/embed/nQCdg5RrO6Y" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/nQCdg5RrO6Y" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" data-external= "1" allowfullscreen></iframe>
 </center>
 
 A szkriptfájlba írhatjuk a gépállatnak szóló utasításainkat R nyelven. Az utasítások végrehajtását a szkript fájl jobb felső sarkában lakó **Run** gomb megtaposásával tudjuk kérni a géptől, aki az utasítás eredményét alul, a *Console* felületen köpi ki. Alapesetben az R mindig azt az utasítást hajtja végre a **Run** gomb megnyomásakor, amiben éppen a villogó kurzorral álltunk.
 Egy példában számoltassuk ki az R-rel, hogy mennyi 3+2:
 
 <center>
-<iframe width="560" height="315" src="https://www.youtube.com/embed/_H6THore3Ms" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/_H6THore3Ms" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" data-external= "1" allowfullscreen></iframe>
 </center>
 
 Több utasítást is végre tudunk hajtatni a géppel egyszerre. Csak jelöljük ki a szkriptben a végrehajtandó utasításokat, és így kijelölés után tapossuk meg a **Run** gombot!
@@ -81,7 +80,7 @@ Egy utasítást több sorba is írhatunk, de egy új utasítás mindig új sorba
 Számoltassunk akkor most ki az R-rel egyszerre két dolgot is: mennyi 3+2 és mennyi 3*2:
 
 <center>
-<iframe width="560" height="315" src="https://www.youtube.com/embed/G0jXgZ0MYmE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/G0jXgZ0MYmE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" data-external= "1" allowfullscreen></iframe>
 </center>
 
 Ezek után a jegyezetek további részében a feladatok elvégzéséhez szükséges R kódrészleteket és azok eredményét az alábbi módon jelölöm:
@@ -101,7 +100,7 @@ Az R Studio jobb alsó sarkában lévő részen lehet kiválasztani és beállí
 A *Working Directory* beállításához az R Studio jobb alsó sarokában lévő résznél található **...** gombot megnyomva kereshetünk mappát. Miután a mappaválasztás megvan, akkor ugyan ennél a résznél található **More --> Set As Working Directory** gombot nyomjuk még le a balpatkánnyal.
 Ez a műveletsor az alábbi R kódot generálja (nyilván mindenkinél más lesz az idézőjelek közti útvonal):
 
-```{r}
+```{r eval=FALSE}
 setwd("C:/Users/lacko/Desktop")
 ```
 
@@ -113,7 +112,7 @@ Az R Studio jobb alsó sarkában található résznél automatikusan el is navig
 Az egész *Working Directory*-val kapcsolatos okfejtés működésben megnézhető a következő videón:
 
 <center>
-<iframe width="560" height="315" src="https://www.youtube.com/embed/kyyMY1RpQXY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/kyyMY1RpQXY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" data-external= "1" allowfullscreen></iframe>
 </center>
 
 Ha és amennyiben a *.R* kiterjesztésű szkriptfájlunk mentése során a gépállat rákérdez, hogy milyen karakterkódolással (*Character Encoding*) szeretnénk azt menteni, akkor az **ISO-8859-2** szabványt válasszuk, mert az tuti jól kezeli a magyar érkezeteket is:
@@ -398,7 +397,7 @@ Ha angol nyelvű oldalról töltünk le adatokat *csv*-ben (pl. [Kaggle](https:/
 
 A beolvasandó adattáblától az R elvárja azt a logikai felépítést, hogy a tábla soraiban legyenek a statisztikai megfigyelési egységeink (emberek, országok, lakások, autók stb.) és az oszlopokban pedig a megfigyeléseket leíró tulajdonságok, azaz változók/ismérvek (ember kora, ország GDP-je, autó márkája stb.).
 
-A Moodle-n található *COVID_0326.csv* fájl megfelel a fenti követelményeknek, és a Föld 100 országára, mint megfigyelési egységekre nézve tartalmazza az alábbi 9 változó adatait:
+A Moodle-n található <a href="https://raw.githubusercontent.com/KoLa992/Tobbvaltozos-Adatelemzes-R-Jegyzet/main/COVID_0326.csv" target="_blank">COVID_0326.csv</a> fájl megfelel a fenti követelményeknek, és a Föld 100 országára, mint megfigyelési egységekre nézve tartalmazza az alábbi 9 változó adatait:
 
 - Country: ország neve
 - Pop: ország népessége (fő)
@@ -666,7 +665,7 @@ A piros üzenetekkel, ha nem *Error*okat írnak, továbbra sem kell törődni.
 Csomagot lehet telepíteni az R Studio jobb alsó sarkában lévő résznél található gombok segítségével is [bocsi, a videóban kicsit bénázok a *psych* szó gépelésével :)]:
 
 <center>
-<iframe width="560" height="315" src="https://www.youtube.com/embed/vZ7x5ogDA-8" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/vZ7x5ogDA-8" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" data-external= "1" allowfullscreen></iframe>
 </center>
 
 ## 8. Gyakoriság, Osztályközök, Relatív gyakoriság, Kumulált gyakoriság, Hisztogram

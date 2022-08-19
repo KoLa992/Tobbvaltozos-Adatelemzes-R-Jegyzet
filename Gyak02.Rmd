@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## 1. Dataframe beolvasása speciális csv formátumból
 
-A Moodle-n található *titanic_utasok.csv* fájl egy olyan adattábla, ami a Titanic 1043 utasáról 8 változó (oszlop) adatát tárolja:
+A Moodle-n található <a href="https://raw.githubusercontent.com/KoLa992/Tobbvaltozos-Adatelemzes-R-Jegyzet/main/titanic_utasok.csv" target="_blank">titanic_utasok.csv</a> fájl egy olyan adattábla, ami a Titanic 1043 utasáról 8 változó (oszlop) adatát tárolja:
 
 - **Osztaly**: Az utas kabinjának osztálya (I., II. vagy III. osztály)
 - **Tulelt_e**: Túlélte-e utasunk a jégheggyel való találkát? (igen/nem)
@@ -31,7 +31,7 @@ A Moodle-n található *titanic_utasok.csv* fájl egy olyan adattábla, ami a Ti
 
 Olvassuk be az adattáblát egy R `data frame`-be!
 
-Mielőtt hozzálátunk a beolvasáshoz, nyissuk meg a fájlt egy **jegyzettömbben**! A jegyzettömbben ugyanis észrevesszük, hogy ez a fájl bizony **nem** olyan jól viselkedő *csv*, mint a *COVID_0326.csv* volt:
+Mielőtt hozzálátunk a beolvasáshoz, nyissuk meg a fájlt egy **jegyzettömbben**! A jegyzettömbben ugyanis észrevesszük, hogy ez a fájl bizony **nem** olyan jól viselkedő *csv*, mint a <a href="https://raw.githubusercontent.com/KoLa992/Tobbvaltozos-Adatelemzes-R-Jegyzet/main/COVID_0326.csv" target="_blank">COVID_0326.csv</a> volt:
 
 - az oszlopok **pontos vesszővel** elválasztottak
 - a tört számok **tizedes vesszőt** használnak
@@ -51,7 +51,7 @@ Ha a `readr`-t betöltöttük az R-be a `library` függvénnyel, akkor az R Stud
 
 Állítsuk be a megfelelő helyre a `Working Directory`-t:
 
-```{r}
+```{r eval=FALSE}
 setwd("~/Oktatás 2021221/Többváltozós adatelemzés/R jegyzet")
 ```
 
@@ -471,7 +471,7 @@ Plusz megintcsak Kate Winslet és DiCaprio példájából kiindulva egyáltalán
 
 ## 5. A szórás
 
-A Moodle-n található *Befektetes.xlsx* fájl egy olyan adattábla, ami a két befektetési alap 1235 napon keresztül mért napi aráfolyamváltozásait tárolja *euróban* 2012 és 2017 között. A két befektetési alap az alábbi:
+A Moodle-n található <a href="https://github.com/KoLa992/Tobbvaltozos-Adatelemzes-R-Jegyzet/blob/main/Befektetes.xlsx" target="_blank">Befektetes.xlsx</a> fájl egy olyan adattábla, ami a két befektetési alap 1235 napon keresztül mért napi aráfolyamváltozásait tárolja *euróban* 2012 és 2017 között. A két befektetési alap az alábbi:
 
 - **Climate Change** részvény befektetési alap
 - **BondMaxx** kötvény befektetési alap
@@ -618,7 +618,7 @@ Végül osztok $N$-nel: $$A=\frac{\sum_{i=1}^N{Y_i}}{N}=\bar{Y}$$.
 
 ## 6. Az eloszlások alakja
 
-Olvassuk be egy R `data frame`-be a Moodle-n található *Erettsegi_2018.xlsx* fájlt. Az Excel táblában a 2018. évi május-júniusi középszintű érettségi eredmények láthatók matematika, magyar és történelem tárgyakból.
+Olvassuk be egy R `data frame`-be a Moodle-n található <a href="https://github.com/KoLa992/Tobbvaltozos-Adatelemzes-R-Jegyzet/blob/main/Erettsegi_2018.xlsx" target="_blank">Erettsegi_2018.xlsx</a> fájlt. Az Excel táblában a 2018. évi május-júniusi középszintű érettségi eredmények láthatók matematika, magyar és történelem tárgyakból.
 
 ```{r}
 Erettsegi <- read_excel("Erettsegi_2018.xlsx")

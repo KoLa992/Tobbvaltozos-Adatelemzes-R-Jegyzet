@@ -19,7 +19,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## 1. A Kapcsolatvizsgálat alapfeladata
 
-A Moodle-n található *CSOK.xlsx* fájl egy olyan adattábla, ami 15800 db véletlenszerűen kiválasztott eladó magyar ingatlanról (lakásról és kertes házról) 5 változó (oszlop) adatát tárolja:
+A Moodle-n található <a href="https://github.com/KoLa992/Tobbvaltozos-Adatelemzes-R-Jegyzet/blob/main/CSOK.xlsx" target="_blank">CSOK.xlsx</a> fájl egy olyan adattábla, ami 15800 db véletlenszerűen kiválasztott eladó magyar ingatlanról (lakásról és kertes házról) 5 változó (oszlop) adatát tárolja:
 
 - **price**: ház ára millió Ft-ban (MFt)
 - **area**: ház területe négyzetméterben
@@ -33,7 +33,7 @@ Olvassuk be az adattáblát egy R `data frame`-be!
 
 Állítsuk be a megfelelő helyre a `Working Directory`-t:
 
-```{r}
+```{r eval=FALSE}
 setwd("~/Oktatás 2021221/Többváltozós adatelemzés/R jegyzet")
 ```
 
@@ -442,7 +442,7 @@ Tehát, azt mondja az eredmény, hogy azt **a gyenge erősségű kapcsolatot leh
 
 ## 5. Korrelációs kapcsolat
 
-Most egy picit váltsunk adatbázist és olvassuk be a Moodle-n található *PreventableMortality_Eurostat.xlsx* című fájlt. Ebben az adattáblában az EU $30$ országáról található $4$ változó. Az adatok forrása az [Eurostat](https://ec.europa.eu/eurostat/web/health/overview):
+Most egy picit váltsunk adatbázist és olvassuk be a Moodle-n található <a href="https://github.com/KoLa992/Tobbvaltozos-Adatelemzes-R-Jegyzet/blob/main/PreventableMortality_Eurostat.xlsx" target="_blank">PreventableMortality_Eurostat.xlsx</a> című fájlt. Ebben az adattáblában az EU $30$ országáról található $4$ változó. Az adatok forrása az [Eurostat](https://ec.europa.eu/eurostat/web/health/overview):
 
 - **Country**: Az ország neve
 - **Smokers**: Az országban a dohányzó népesség aránya (%)
@@ -605,7 +605,7 @@ Mort$BecsultHalal <- predict(RegModell, newdata = Mort)
 head(Mort)
 ```
 
-Láthatjuk, hogy megvan az új, **BecsultHalal* oszlopunk! Értéke Magyarországra pedig $211.96$! Ez kicsit eltér attól, amit mi számoltunk manuálisan, mert a $\beta$-k, amiket mi használtunk kerekített értékek voltak.
+Láthatjuk, hogy megvan az új, **BecsultHalal** oszlopunk! Értéke Magyarországra pedig $211.96$! Ez kicsit eltér attól, amit mi számoltunk manuálisan, mert a $\beta$-k, amiket mi használtunk kerekített értékek voltak.
 
 Ezen kívül fontos megjegyezni, hogy a regressziós egyenes $\beta_1$ és $\beta_0$ együtthatóinak **fontos jelentéstartalmat is tudunk adni**:
 

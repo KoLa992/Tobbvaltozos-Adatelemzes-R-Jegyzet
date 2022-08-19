@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## 1. Az ESS2018 adatbázis
 
-Tekintsük a Moodle-n található *ESS2018.xlsx* fájlt. Az adatbázis a 2018-ban végzett európai szociális felmérés (European Social Survey 2018 = ESS2018) 1568 magyar kitöltöjének válaszait tartalmazza 12 kérdésre.
+Tekintsük a Moodle-n található <a href="https://github.com/KoLa992/Tobbvaltozos-Adatelemzes-R-Jegyzet/blob/main/ESS2018.xlsx" target="_blank">ESS2018.xlsx</a> fájlt. Az adatbázis a 2018-ban végzett európai szociális felmérés (European Social Survey 2018 = ESS2018) 1568 magyar kitöltöjének válaszait tartalmazza 12 kérdésre.
 
 Az "NA" kód jelentése: "Nincs adat", tehát ekkor a kitöltő nem válaszolt az adott kérdésre. Az adatbázisban szereplő kitöltők a teljes 18 év feletti magyar népességből vett véletlen mintaként kezelhetők. A teljes adatbázis [innen](https://www.europeansocialsurvey.org/data/download.html?r=9) elérhető.
 
@@ -41,7 +41,7 @@ Töltsük is be az Excel fájlt egy R `data frame`-be a `readxl` csomag segíts�
 
 Először állítsuk be a `Working Directory`-t:
 
-```{r}
+```{r eval=FALSE}
 setwd("~/Oktatás 2021221/Többváltozós adatelemzés/R jegyzet")
 ```
 
@@ -528,3 +528,116 @@ A jelenség rögzítésére a fejekben talán jó szolgálatot tesz ez a kis mé
 Ennyi elméleti szenvedés után nézzük meg hogyan kell R-ben p-értéket számolni átlagra, arányra és szórásra vonatkozó állítások=hipotézisek esetén!
 
 ### 4.2. Az átlagra vonatkozó t-próba
+
+Ha a vizsgált *állításunk/hipotézisünk* átlagra vonatkozik, akkor a **p-értéket** úgynevezett **t-próbával** lehet kiszámolni.<br>
+Itt az R `t.test` függvényét lehet alkalmazni.
+
+Vizsgáljuk akkor meg az **ESS2018** adatbázisban adott minta alapján, hogy igaznak tekinthető-e az az optimista állítás, hogy **egy átlagos magyar több, mint 12 évet tölt oktatással**.<br>
+Mint az előző fejezetekben végigvettük az állításból a következő $H_0$ és $H_1$ páros adódik az adatbázis `Oktatas` változójának a megfgyeléseken túli világban, azaz a *sokaságban* vett átlagára:
+
+- Állítás: $\mu>12$
+- $H_0:\mu=12$
+- $H_1:\mu>12$
+- Eredeti állítás pedig a $H_1$-ben lakik.
+
+Mivel a $H_1$-ben $>$ jell van, így hipotézisvizsgálatunk egy **jobboldali próba**.
+
+Ezen információk alapján a következőképpen kell paraméterezni az R `t.test` függvényét:
+
+- Első paraméter a változó, aminek átlagára vonatkozik az eredeti állításunk
+- Második paraméter az `alternative` névre hallgat, és ebben adjuk meg a próba oldalát, azaz a $H_1$ relációs jelét.
+  * Ha a paraméter értéke **"two.sided"**, akkor a próba **kétoldali** és a $H_1$-ben $\neq$ jel van
+  * Ha a paraméter értéke **"less"**, akkor a próba **baloldali** és a $H_1$-ben $<$ jel van
+  * Ha a paraméter értéke **"greater"**, akkor a próba **jobboldali** és a $H_1$-ben $>$ jel van
+- Harmadik paraméter `mu` néven fut, és ide az elvi átlagot kell megadni. Tehát azt az értéket, amit $H_0$-ban feltételezünk a valós sokasági átlagról, azaz $\mu$-ről.
+
+Ezek alapján az esetünkben megfelelő `t.test` függvény az alábbi módon néz ki:
+
+```{r}
+t.test(ESS2018$Oktatas, alternative = "greater", mu = 12)
+```
+
+Az eredmény alapján a **p-érték = $0.0001444=0.014\%$**. Ez kisebb még a legkisebb szokásos szignifikancia-szintnél, az $\alpha=1\%$-nál is, így egyértelműen és stabilan elfogadható a $H_1$, ami szerint a népesség egészét vizsgálva az átlagos oktatásban töltött idő Magyarországon több, mint 12 év.<br>
+Azaz a **mintából mért $12.3$ éves átlag szignifikánsan magasabb érték a $12$-nél, az eltérés NEM a mintavételi hiba műve**.
+
+### 4.3. Az arányra vonatkozó t-próba
+
+Vizsgáljuk most meg egy olyan állítás igazságtartalmát az **ESS2018** minta alapján miszerint a  a magyar lakosság **kevesebb, mint negyede** támogatta csak 2018-ban a Fideszt, mint poltikai pártot.
+
+Ez az állítás egyértelműen a Fideszt támogató magyar népesség **arányára** vonatkozik. Az ilyen arányra vonatkozó állítások hipotézisvizsgálata során pedig élehetünk ugyan azzal a trükkel, amivel az arány konfidencia-intervallumok számítása során is éltünk:<br>
+Egy előre megadott tulajdonságú (esetünkben Fidesz-támogató) elemek aránya egy olyan változó átlaga, ahol a tulajdonsággal bíró egyedek $1$ értéket, míg a tulajdonsággal NEM rendelkező egyedek $0$ értéket kapnak.
+
+Innentől kezdve pedig nekünk a **3.2. fejezetben létrehozott**, *0-1* értékekből álló `Fidesz` változó átlagára van egy $\mu<0.25$ hipotézisünk.
+
+Ebből tudunk csinálni $H_0$-t és $H_1$-et a szokásos elven: $H_0$-ba egyenlőséget állítunk, míg a $H_1$-be bekerül maga az állítás, hiszen az *nem negedett meg egyenlőséget*.
+
+- $H_0:\mu=0.25$
+- $H_1:\mu<0.25$
+- Eredeti állítás pedig a $H_1$-ben lakik.
+
+Mivel a $H_1$-ben $<$ jell van, így hipotézisvizsgálatunk egy **baloldali próba**.
+
+Ezen információk alapján pedig már tudjuk is paraméterezni az R `t.test` függvényét
+
+```{r}
+t.test(ESS2018$Fidesz, alternative = "less", mu = 0.25)
+```
+
+Az eredmény alapján a **p-érték = $0.1177=11.77\%$**. Ez nagyobb még a legnagyobb szokásos szignifikancia-szintnél, az $\alpha=10\%$-nál is alacsonyabb érték, így egyértelműen és stabilan elfogadható a $H_0$, ami szerint a népesség egészét tekintve a Fidesz támogatottsági aránya $25\%$.<br>
+Azaz a **mintából mért $23.7\%$-os támogatottsági arány NEM szignifikánsan kisebb érték a $25\%$-nál, az eltérés CSUPÁN a mintavételi hiba műve**.
+
+Fontos megjegyzés, hogy az átlagra és arányra vonatkozó **t-próbás hipotézisvizsgálatnak lényegében ugyan az a két előfeltétele volt, mint a konfidencia-intervallum számolásnak**:
+
+- A **minta kiválasztási módja** legyen rendes, sorsolás alapú **véletlen**.
+- A statisztikai mutató legyen **torzítatlanul becsülhető**.
+
+### 4.4. A mediánra vonatkozó Wilcoxon-próba
+
+Most nézzünk meg egy olyan állítást, ami szerint **a magyar népesség fele hetente legalább 40 percet néz politikai híreket**.<br>
+**VIGYÁZZUNK**, mert becsapós az állítás a *legalább* szó miatt! Hiszen, valójában ez az állítás azt takarja magában, hogy a `Hirek` változó **mediánja a sokaságban egyenlő 40-nel**!
+
+Vagyis, azt mondjuk, hogy $Me_{Hirek}=40$. Ebből tudunk csinálni $H_0$-t és $H_1$-et a szokásos elven: $H_0$-ba egyenlőséget állítunk, míg a $H_1$-be bekerül az állítás, **tagadása** hiszen az *megengedi egyenlőséget*.
+
+- $H_0:Me=40$
+- $H_1:Me\neq40$
+- Eredeti állítás pedig a $H_0$-ban lakik.
+
+Mivel a $H_1$-ben $\neq$ jell van, így hipotézisvizsgálatunk egy **kétoldali próba**.
+
+A medián esetén p-értéket egy **Wilcoxon-próba** névre hallgató eljárással lehet számolni. R-ben `wilcox.test` névre hallgat a megfeleő függvény. A paraméterek ugyan úgy vannak nagyjából, mint a `t.test`-ben. Egész konkrétan a $H_0$-ban feltételezett medián értéket szintén `mu` névre hallgató paraméterben kell megadni ennek a függvénynek is.<br>
+Két különbség azért van a dologban. Az egyik, hogy itt **nincs** `alternative` paraméter. A Wilcoxon-próba **csak kétoldali** lehet! A másik pedig, hogy a konfidencia-intervallumhoz hasonlóan a mediánra vonatkozó p-értéket is csak **szimulációk segítségével lehet pontosan meghatározni**. Emiatt át kell ütni `FALSE`-ra a függvényben egy `exact` nevű paramétert.
+
+```{r}
+median(ESS2018$Hirek) # nézzük meg külön a mintabeli mediánt is
+wilcox.test(ESS2018$Hirek, mu = 40, exact = FALSE)
+```
+
+Az eredmény alapján a **p-érték = $1.491\times10^{-9}$**. Ez kisebb még a legkisebb szokásos szignifikancia-szintnél, az $\alpha=1\%$-nál is alacsonyabb érték, így egyértelműen és stabilan elfogadható a $H_1$, ami szerint a népesség egészét tekintve a medián heti hírnézési idő nem vehető $40$-nek.<br>
+Azaz a **mintából mért $30$ perces medián szignifikánsan eltérő érték a $40$-hez képest, az eltérés NEM a mintavételi hiba műve**.
+
+### 4.5. Normalitásvizsgálat - Shapiro-Wilk-próba
+
+A hipotézisvizsgálatoknak egy hasznos alfaja a normalitásvizsgálatok esete. Ezek olyan hipotézisvizsgálatok, ahol kötött $H_0$ és $H_1$ van, mégpedig a következő:
+
+- $H_0:$ Az adatok normális eloszlásúnak tekinthetők a mintán kívüli világban, azaz a sokaságban
+- $H_1:$ Az adatok nem tekinthetők normális eloszlásúnak a sokaságban
+
+Ezek a $H_0$ és $H_1$ párok segítenek nekünk akkor, ha nem tudjuk hisztogramról vagy $\alpha_3$ és $\alpha_4$ mutatóval egyértelműen eldönteni, hogy a változónk eloszlása vehető-e szép szimmetrikus normális eloszlásnak. Sőt, ha itt el tudjuk fogadni a $H_0$-t, az azt jelenti, hogy az adatok a megfigyelt *mintán túli adatok körében is normális eloszlásúnak vehetők*, nem csak a megfigyelt mintában!
+
+Egy ilyen normalitásvizsgálathoz a legjobb p-érték számoló módszer R-ben a Shapiro-Wilk-próba, alias `shapiro.test` függvény. De fontos feltevése, hogy nagy mintánk, konkrétan $N>100$ esetünk legyen! Azon túl persze, hogy a mintavétel módja *véletlen* legyen! :)
+
+Szerencsére a függvény egyszerűen működik: semmi extra paramétere nincs, egyszerűen csak rá kell ereszteni a kiválasztott változónkra.
+
+Vegyük mondjuk a `Munkaido` változót. Hisztogramja alapján egész normális eloszlásúnak néz ki, vcsak bezavar pár kilógó érték, egész konkrétan fölfelé az egy szem ürge, aki több, mint heti 150 órát dolgozik.
+
+```{r}
+hist(ESS2018$Munkaido)
+```
+
+Nézzük meg mennyire tolerálható ennyi eltérés a normális eloszlástól a Shapiro-Wilk-próba p-értéke alapján:
+
+```{r}
+shapiro.test(ESS2018$Munkaido)
+```
+
+A válasz: semennyire. :) A p-érték kisebb, mint $2.16\times10^{-16}$, azaz bőven kisebb, mint a legksiebb szoksásos $\alpha=1\%$. Egyértelműen és stabilan elvethető a normális eloszlást állító $H_0$.
